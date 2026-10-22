@@ -75,6 +75,12 @@ else:
     )
 
 
+def _serialize_unrecognized(value: Union[str, int], info: core_schema.SerializationInfo) -> Union[str, int]:
+    if info.mode == "python":
+        return value
+    return str(value) if isinstance(value, str) else int(value)
+
+
 class UnrecognizedStr(str):
     @classmethod
     def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
@@ -94,7 +100,7 @@ class UnrecognizedStr(str):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
-            serialization=core_schema.plain_serializer_function_ser_schema(str),
+            serialization=core_schema.plain_serializer_function_ser_schema(_serialize_unrecognized, info_arg=True),
         )
 
 
@@ -113,5 +119,5 @@ class UnrecognizedInt(int):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
-            serialization=core_schema.plain_serializer_function_ser_schema(int),
+            serialization=core_schema.plain_serializer_function_ser_schema(_serialize_unrecognized, info_arg=True),
         )

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import warnings
 from typing import Annotated, Any, List, Optional
 
 import httpx
@@ -151,8 +152,11 @@ def test_unrecognized_enum_serialization(typ, value):
     adapter = pydantic.TypeAdapter(typ)
     enum_value = adapter.validate_python(value)
     assert isinstance(enum_value, typ)
-    assert adapter.dump_python(enum_value, mode="json") == value
-    assert json.loads(adapter.dump_json(enum_value)) == value
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert adapter.dump_python(enum_value) is enum_value
+        assert adapter.dump_python(enum_value, mode="json") == value
+        assert json.loads(adapter.dump_json(enum_value)) == value
     with pytest.raises(pydantic.ValidationError):
         adapter.validate_python(value, strict=True)
 

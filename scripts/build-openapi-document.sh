@@ -16,7 +16,7 @@ fi
 
 template_spec="./tests/specs/uber.yaml"
 component_spec="./tests/specs/components.yaml"
-if [ "${VARIANT}" == "unknown-fields" ] || [ "${VARIANT}" == "unknown-fields-default" ]; then
+if [[ "${VARIANT}" == unknown-fields* ]]; then
     template_spec="./tests/specs/unknown-fields.yaml"
 elif [ "${VARIANT}" == "oauth2-password" ] || [ "${VARIANT}" == "custom-http" ]; then
     template_spec="./tests/specs/ecommerce.yaml"
