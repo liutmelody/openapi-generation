@@ -73,8 +73,7 @@ function Install-CLI {
     Write-ColorOutput "Downloading from: $downloadUrl" -Color Cyan
 
     # Create temporary directory
-    $tempRoot = (Get-Item -LiteralPath $env:TEMP).FullName
-    $tempDir = Join-Path $tempRoot "cli-install-$(New-Guid)"
+    $tempDir = Join-Path $env:TEMP "cli-install-$(New-Guid)"
     New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
     try {
