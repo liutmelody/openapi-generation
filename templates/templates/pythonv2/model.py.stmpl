@@ -8,6 +8,9 @@
 {{- $hasNullableField := gt (len $nullableFields) 0 -}}
 {{- $hasAdditionalProperties := hasAdditionalPropertiesField $type -}}
 {{- $preserveUnknownFields := .Global.Config.PreserveUnknownFields -}}
+{{- $modelSerializationMethods := .Global.Config.ModelSerializationMethods -}}
+{{- $outputKey := "k" -}}
+{{- if $modelSerializationMethods}}{{$outputKey = "n if use_field_names else k"}}{{end -}}
 {{- if $hasAdditionalProperties}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
 {{- $fields := (sortFields $type.Fields) -}}
 {{- $className := sanitizeClassName $type.Name }}
@@ -85,7 +88,7 @@ class {{$className}}(BaseModel):
     {{-   addImport "pydantic" "model_serializer"}}
     {{-   addImport "types" "UNSET_SENTINEL" true}}
     @model_serializer(mode="wrap")
-    def {{sanitizeSerializeMethodName $type}}(self, handler):
+    def {{sanitizeSerializeMethodName $type}}(self, handler{{if $modelSerializationMethods}}, info{{end}}):
         {{- $nullDefaultFields := templateNullDefaultFieldList $type}}
         {{- $hasNullDefaultField := gt (len $nullDefaultFields) 0}}
         {{- if $hasOptionalField}}
@@ -99,6 +102,9 @@ class {{$className}}(BaseModel):
         {{- end}}
         serialized = handler(self)
         m = {}
+        {{- if $modelSerializationMethods}}
+        use_field_names = info.by_alias is False
+        {{- end}}
 
         for n, f in type(self).model_fields.items():
             k = f.alias or n
@@ -121,7 +127,7 @@ class {{$className}}(BaseModel):
 
             if val != UNSET_SENTINEL:
                 {{- if not $hasOptionalField}}
-                m[k] = val
+                m[{{$outputKey}}] = val
                 {{- else }}
                 if (
                     val is not None
@@ -130,7 +136,7 @@ class {{$className}}(BaseModel):
                     or is_nullable_and_explicitly_set
                     {{- end}}
                 ):
-                    m[k] = val
+                    m[{{$outputKey}}] = val
                 {{- end}}
 
         {{- if or $hasAdditionalProperties $preserveUnknownFields}}

@@ -177,6 +177,20 @@ def test_model_serialization_methods(options):
     assert json.loads(model.to_json(**options)) == model.to_dict(mode="json", **options)
 
 
+def test_model_serialization_methods_field_names():
+    model = models.FieldEnvelopeInput.model_validate({"label": "root", "child": {"displayName": "child", "child": {"displayName": "grandchild"}}, "futureKind": "third", "plainChoice": {"text": "t"}, "future": True})
+    extra = {"future": True} if PRESERVE_UNKNOWN_FIELDS else {}
+    api_names = {"label": "root", "child": {"displayName": "child", "child": {"displayName": "grandchild"}}, "futureKind": "third", "plainChoice": {"text": "t"}, **extra}
+    field_names = {"label": "root", "child": {"display_name": "child", "child": {"display_name": "grandchild"}}, "future_kind": "third", "plain_choice": {"text": "t"}, **extra}
+    assert model.model_dump(exclude_unset=True) == api_names
+    if not MODEL_SERIALIZATION_METHODS:
+        return
+    assert model.to_dict() == api_names
+    assert model.to_dict(use_api_names=False) == field_names
+    assert json.loads(model.to_json(use_api_names=False)) == field_names
+    assert models.FieldEnvelopeInput.model_validate(model.to_dict(use_api_names=False)).to_dict() == api_names
+
+
 def test_helper_names_reserved_only_on_models():
     expected_fields = {"to_dict_", "to_json_"} if MODEL_SERIALIZATION_METHODS else {"to_dict", "to_json"}
     assert set(models.MethodNames.model_fields) == expected_fields
