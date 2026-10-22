@@ -66,6 +66,18 @@ func (e *outcomeError) MachineErrorFields() map[string]interface{} {
 	return fields
 }
 
+func outcomeResultFailure(cmd *cobra.Command, res interface{}) *outcomeError {
+	cfg := activeOutcome(cmd)
+	if cfg == nil || cfg.StatePointer == "" {
+		return nil
+	}
+	payload, ok := outcomeResultPayload(res)
+	if !ok {
+		return nil
+	}
+	return outcomeFailure(cmd, cfg, payload, cfg.StatePointer, cfg.ErrorPointer)
+}
+
 // outcomeFailure classifies the state at statePointer inside payload. It
 // returns nil when the state is absent, not a string, unknown, or not
 // classified as failure: the linker guarantees declared enums are fully

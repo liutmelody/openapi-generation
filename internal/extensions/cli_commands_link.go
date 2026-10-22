@@ -1040,10 +1040,10 @@ func (d *cliManifestDecoder) linkAsync(cmdKey string, cmd *CLICommand, createInf
 // every application/json 2xx response and the states table must classify
 // exactly that enum, so an API state can never reach the runtime
 // unclassified. The stream state pointer is checked like a stream
-// projection: it must address a string in at least one event shape. Error
-// pointers must address an object or an array in every JSON response
-// variant; events are not re-walked for the stream error pointer because the
-// failure detail may legitimately live on only the terminal event shape.
+// projection: it must address a string in at least one event shape, and the
+// stream error pointer an object or an array in at least one event shape,
+// since the failure detail may live on only the terminal event. The JSON
+// error pointer must address an object or an array in every response variant.
 func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcome, opID string, opInfo *cliOperationInfo) error {
 	if outcome.StatePointer != "" {
 		if len(opInfo.jsonResponses) == 0 {
@@ -1093,9 +1093,16 @@ func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcom
 		if err := d.linkStreamSelection(owner, "output.outcome.streamStatePointer", outcome.StreamStateFrom, opInfo); err != nil {
 			return err
 		}
+		if outcome.StreamErrorPointer != "" {
+			if err := d.linkStreamSelection(owner, cliStreamDetailField, outcome.StreamErrorFrom, opInfo); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
+
+const cliStreamDetailField = "output.outcome.streamErrorPointer"
 
 // linkOutcomeErrorPointer walks a failure-detail path through every
 // traversable variant of a JSON response schema and requires the leaf to be
@@ -1898,7 +1905,7 @@ func (d *cliManifestDecoder) linkStreamSelection(owner, field, selectPath string
 		return fmt.Errorf("%s %s: %w", owner, field, err)
 	}
 
-	walker := &cliStreamPathWalker{d: d, owner: owner, selectPath: selectPath, field: field}
+	walker := &cliStreamPathWalker{d: d, owner: owner, selectPath: selectPath, field: field, detail: field == cliStreamDetailField}
 	for _, schema := range opInfo.streamSchemas {
 		if schema == nil {
 			walker.unverifiable("the streaming response declares no schema")
@@ -1909,18 +1916,22 @@ func (d *cliManifestDecoder) linkStreamSelection(owner, field, selectPath string
 	if walker.err != nil {
 		return walker.err
 	}
+	expected := "a string"
+	if walker.detail {
+		expected = "an object or array"
+	}
 	if walker.resolved == 0 {
 		if walker.unverified == 0 {
 			return fmt.Errorf("%s %s %s does not resolve in any event shape of the streaming response%s", owner, field, selectPath, walker.missSuggestion())
 		}
-		d.warnf("%s %s %s could not be verified against the streaming response schema (%s); events without a string at that path are skipped at runtime", owner, field, selectPath, walker.firstReason)
+		d.warnf("%s %s %s could not be verified against the streaming response schema (%s); events without %s at that path are skipped at runtime", owner, field, selectPath, walker.firstReason, expected)
 		return nil
 	}
 	if err := d.lintProjection(owner, field, cliSingularPathToJQ(segments), "the streaming response declares no event schema", cliOperationProjectionSchema(opInfo), true); err != nil {
 		return err
 	}
 	if walker.unverified > 0 {
-		d.warnf("%s %s %s resolves in %d event shape(s) but could not be verified in every arm (%s); unverified events without a string at that path are skipped at runtime", owner, field, selectPath, walker.resolved, walker.firstReason)
+		d.warnf("%s %s %s resolves in %d event shape(s) but could not be verified in every arm (%s); unverified events without %s at that path are skipped at runtime", owner, field, selectPath, walker.resolved, walker.firstReason, expected)
 	}
 	return nil
 }
@@ -1953,8 +1964,9 @@ type cliStreamPathWalker struct {
 	owner      string
 	selectPath string
 	field      string
+	detail     bool // the leaf must be an object or array (failure detail)
 
-	resolved    int // arms where the full path resolved to a string/null leaf
+	resolved    int // arms where the full path resolved to an accepted leaf
 	unverified  int // arms the walk could not see through
 	firstReason string
 	err         error
@@ -2153,19 +2165,31 @@ type leafClass int
 const (
 	leafUnknown leafClass = iota // untyped: nothing provable
 	leafString                   // string or null
-	leafOther                    // provably not a string
+	leafOther                    // provably not the expected kind
+	leafDetail                   // object or array (failure detail)
 )
 
 // checkLeaf classifies the schema the full path resolved to. Strings and
 // nulls are what the raw writer emits; anything provably not a string is a
-// generation error naming the kind.
+// generation error naming the kind. A detail walker accepts objects and
+// arrays instead.
 func (w *cliStreamPathWalker) checkLeaf(schemaMap map[string]any, seen []string) {
-	class, kind := w.classifyLeaf(schemaMap, seen)
+	var (
+		class leafClass
+		kind  string
+	)
+	if w.detail {
+		class, kind = w.classifyDetailLeaf(schemaMap, seen)
+	} else {
+		class, kind = w.classifyLeaf(schemaMap, seen)
+	}
 	switch class {
-	case leafString:
+	case leafString, leafDetail:
 		w.resolved++
 	case leafOther:
-		if w.field == "output.stream.metadata.select" {
+		if w.detail {
+			w.err = fmt.Errorf("%s %s %s resolves to %s in one event shape; the failure detail must be an object or an array", w.owner, w.field, w.selectPath, kind)
+		} else if w.field == "output.stream.metadata.select" {
 			w.err = fmt.Errorf("%s %s %s resolves to %s in one event shape; metadata must address a string field", w.owner, w.field, w.selectPath, kind)
 		} else {
 			w.err = fmt.Errorf("%s %s %s resolves to %s in one event shape; the streamed projection writes string values raw, so select must address a string field", w.owner, w.field, w.selectPath, kind)
@@ -2173,6 +2197,67 @@ func (w *cliStreamPathWalker) checkLeaf(schemaMap map[string]any, seen []string)
 	default:
 		w.unverifiable("the selected field is untyped")
 	}
+}
+
+// classifyDetailLeaf inspects a failure-detail leaf: object and array schemas
+// (by type, properties, or items) are accepted, a null arm is neutral, and
+// any other const, enum, or typed scalar is a provable error naming the kind.
+func (w *cliStreamPathWalker) classifyDetailLeaf(schemaMap map[string]any, seen []string) (leafClass, string) {
+	if ref, ok := schemaMap["$ref"].(string); ok {
+		name := strings.TrimPrefix(ref, cliComponentRefPrefix)
+		if !strings.HasPrefix(ref, cliComponentRefPrefix) || cliContains(seen, name) {
+			return leafUnknown, ""
+		}
+		component, ok := w.d.schemaIndex.components[name].(map[string]any)
+		if !ok {
+			return leafUnknown, ""
+		}
+		return w.classifyDetailLeaf(component, append(seen, name))
+	}
+
+	var branches []any
+	if members := cliUnionMembers(schemaMap); members != nil {
+		branches = append(branches, members...)
+	}
+	if allOf, ok := schemaMap["allOf"].([]any); ok {
+		branches = append(branches, allOf...)
+	}
+	if len(branches) > 0 {
+		result := leafUnknown
+		for _, branch := range branches {
+			branchMap, ok := branch.(map[string]any)
+			if !ok {
+				continue
+			}
+			class, kind := w.classifyDetailLeaf(branchMap, seen)
+			switch class {
+			case leafOther:
+				return leafOther, kind
+			case leafDetail:
+				result = leafDetail
+			}
+		}
+		return result, ""
+	}
+
+	types := cliSchemaTypes(schemaMap)
+	_, hasProperties := schemaMap["properties"]
+	_, hasItems := schemaMap["items"]
+	if cliContains(types, "object") || cliContains(types, "array") || hasProperties || hasItems {
+		return leafDetail, ""
+	}
+	if constVal, ok := schemaMap["const"]; ok {
+		return leafOther, "a constant " + jsonValueKind(constVal)
+	}
+	if enum, ok := schemaMap["enum"].([]any); ok && len(enum) > 0 {
+		return leafOther, "an enum"
+	}
+	for _, typ := range types {
+		if typ != "null" {
+			return leafOther, cliKindArticle(cliSchemaTypeKind(typ))
+		}
+	}
+	return leafUnknown, ""
 }
 
 // classifyLeaf inspects a leaf schema: const/enum values, type (scalar or

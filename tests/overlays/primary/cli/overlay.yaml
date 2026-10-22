@@ -133,6 +133,18 @@ actions:
                 incomplete: success
                 failed: failure
                 cancelled: failure
+        outcomeListInteractions:
+          output:
+            outcome:
+              statePointer: $.status
+              errorPointer: $.errors
+              states:
+                queued: pending
+                in_progress: pending
+                completed: success
+                incomplete: success
+                failed: failure
+                cancelled: failure
       commands:
         outcome-check:
           category: Create
@@ -625,6 +637,33 @@ actions:
               application/json:
                 schema:
                   $ref: '#/components/schemas/outcomeInteraction'
+    /outcome/interactions:
+      get:
+        operationId: outcomeListInteractions
+        tags: [outcome]
+        description: Cursor-paginated listing whose every page carries the batch's terminal status, so output.outcome classifies each page fetched with --all and not only the first response.
+        servers:
+        - url: http://localhost:35456
+        parameters:
+          - name: cursor
+            in: query
+            schema:
+              type: string
+        x-speakeasy-pagination:
+          type: cursor
+          inputs:
+            - name: cursor
+              in: parameters
+              type: cursor
+          outputs:
+            nextCursor: $.next_cursor
+        responses:
+          "200":
+            description: One page of interactions.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/outcomeInteractionPage'
     /outcome/stream:
       post:
         operationId: outcomeStream
@@ -674,6 +713,23 @@ actions:
           type: string
         message:
           type: string
+    outcomeInteractionPage:
+      type: object
+      required: [status, items]
+      properties:
+        status:
+          type: string
+          enum: [queued, in_progress, completed, incomplete, failed, cancelled]
+        next_cursor:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/outcomeInteraction'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/outcomeError'
     outcomeStreamEvent:
       type: object
       required: [data]

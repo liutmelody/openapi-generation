@@ -31,6 +31,17 @@ func newOutcomeServer(t *testing.T, status string, withErrors bool) *httptest.Se
 		case strings.HasPrefix(r.URL.Path, "/outcome/interactions/"):
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, outcomeInteractionJSON(status, withErrors))
+		case r.URL.Path == "/outcome/interactions":
+			w.Header().Set("Content-Type", "application/json")
+			if r.URL.Query().Get("cursor") == "" {
+				fmt.Fprint(w, `{"status":"in_progress","next_cursor":"page-2","items":[{"id":"int_1","status":"completed"}]}`)
+				return
+			}
+			errorsJSON := ""
+			if withErrors {
+				errorsJSON = `,"errors":[{"code":"blocked","message":"content was blocked"}]`
+			}
+			fmt.Fprintf(w, `{"status":%q,"items":[{"id":"int_2","status":%q}]%s}`, status, status, errorsJSON)
 		case r.URL.Path == "/outcome/stream":
 			w.Header().Set("Content-Type", "text/event-stream")
 			fmt.Fprint(w, "data: {\"event_type\":\"delta\",\"content\":\"Hello\"}\n\n")
@@ -126,6 +137,44 @@ func TestOutcomeDiscreteResponse(t *testing.T) {
 			assert.Equal(t, "content was blocked", detail[0].(map[string]interface{})["message"])
 		})
 	}
+}
+
+func TestOutcomePaginatedResponse(t *testing.T) {
+	for _, tc := range []struct {
+		status     string
+		withErrors bool
+		wantExit   int
+		wantStderr string
+	}{
+		{"completed", false, clierrors.ExitOK, ""},
+		{"failed", true, clierrors.ExitRuntime, `ended in failure state "failed": content was blocked`},
+		{"cancelled", false, clierrors.ExitRuntime, `ended in failure state "cancelled"`},
+	} {
+		t.Run(tc.status+"/all-pages", func(t *testing.T) {
+			srv := newOutcomeServer(t, tc.status, tc.withErrors)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, "outcome", "outcome-list-interactions", "--all", "--output-format", "json")
+			assert.Equal(t, tc.wantExit, clierrors.ExitCode(err), h.GetStderr())
+			pages := strings.Split(strings.TrimSpace(h.GetStdout()), "\n")
+			require.Len(t, pages, 2, h.GetStdout())
+			assert.Contains(t, pages[0], `"status":"in_progress"`)
+			assert.Contains(t, pages[1], `"status":`+fmt.Sprintf("%q", tc.status))
+			if tc.wantStderr == "" {
+				assert.Empty(t, h.GetStderr())
+				return
+			}
+			envelope := outcomeErrorEnvelope(t, h.GetStderr())
+			assert.Contains(t, envelope["message"], tc.wantStderr)
+			assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+		})
+	}
+	t.Run("first page only", func(t *testing.T) {
+		srv := newOutcomeServer(t, "failed", true)
+		defer srv.Close()
+		h, err := runOutcome(t, srv.URL, "outcome", "outcome-list-interactions", "--output-format", "json")
+		assert.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Contains(t, h.GetStdout(), `"status":"in_progress"`)
+	})
 }
 
 func TestOutcomeStreamedResponse(t *testing.T) {

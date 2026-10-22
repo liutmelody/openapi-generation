@@ -116,6 +116,11 @@ func PaginatedResult(cmd *cobra.Command, res interface{}, contentFieldName, resu
 			}
 		}
 
+		if failure := outcomeResultFailure(cmd, page); failure != nil {
+			_ = flushRows(true)
+			return Error(cmd, failure)
+		}
+
 		pageCount++
 		if maxPages > 0 && pageCount >= maxPages {
 			if HasMorePages(page, probe) && !IsMachineMode(cmd) {

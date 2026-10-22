@@ -5447,6 +5447,7 @@ commands:
         select: $.data.delta.text
       outcome:
         streamStatePointer: $.data.reason
+        streamErrorPointer: $.data.error
         states:
           done: success
           cancelled: failure
@@ -5478,6 +5479,8 @@ func TestCLICommands_OutcomeDecodeAndLink(t *testing.T) {
 	assert.Empty(t, follow.StatePointer)
 	assert.Equal(t, "$.data.reason", follow.StreamStateFrom)
 	assert.Equal(t, "/data/reason", follow.StreamStatePointer)
+	assert.Equal(t, "/data/error", follow.StreamErrorPointer)
+	assert.Equal(t, "message", follow.ErrorMessageField)
 	assert.Equal(t, "/data/delta/text", manifest.Commands[1].Output.Stream.Pointer)
 
 	require.Len(t, manifest.Operations, 1)
@@ -5505,6 +5508,8 @@ func TestCLICommands_OutcomeErrors(t *testing.T) {
 		{"stream pointer on discrete operation", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        streamStatePointer: $.status\n        states:\n          in_progress", 1), "has no streaming (text/event-stream or JSONL) success response"},
 		{"stream pointer misses every event", strings.Replace(base, "streamStatePointer: $.data.reason", "streamStatePointer: $.data.outcome", 1), "does not resolve in any event shape"},
 		{"error pointer must be object or array", strings.Replace(base, "errorPointer: $.steps", "errorPointer: $.id", 1), "selected failure detail must be an object or an array"},
+		{"stream error pointer misses every event", strings.Replace(base, "streamErrorPointer: $.data.error", "streamErrorPointer: $.data.failure", 1), "output.outcome.streamErrorPointer $.data.failure does not resolve in any event shape"},
+		{"stream error pointer must be object or array", strings.Replace(base, "streamErrorPointer: $.data.error", "streamErrorPointer: $.data.event_id", 1), "resolves to a string in one event shape; the failure detail must be an object or an array"},
 		{"error pointer without state pointer", strings.Replace(base, "        streamStatePointer: $.data.reason\n", "        streamStatePointer: $.data.reason\n        errorPointer: $.data.reason\n", 1), "output.outcome.errorPointer requires statePointer"},
 		{"message field without pointer", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        statePointer: $.status\n        errorMessageField: detail\n        states:\n          in_progress", 1), "errorMessageField requires errorPointer or streamErrorPointer"},
 		{"async conflict", strings.TrimSuffix(validAsyncManifest, "\n") + "\n    output:\n      outcome:\n        statePointer: $.status\n        states: {in_progress: pending, completed: success, failed: failure, requires_action: handoff}\n", "declares both async and output.outcome"},
