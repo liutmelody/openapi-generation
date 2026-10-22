@@ -583,3 +583,19 @@ func TestArtifact_InteractiveSuppressedByNonInteractiveAndAgentModes(t *testing.
 		})
 	}
 }
+
+// A declared failure state (output.outcome) fails the command before any
+// media is written.
+func TestArtifact_DeclaredFailureStateWritesNothing(t *testing.T) {
+	server := artifactTestServer(t, `{"id":"task-123","status":"failed","steps":[{"content":[{"type":"image","data":"YXJ0aWZhY3QtYnl0ZXM=","mime_type":"image/png"}]}]}`)
+	dir := t.TempDir()
+	h := NewCLITestHarness(t)
+
+	err := runArtifact(t, h, server.URL, dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `ended in failure state "failed"`)
+	assert.Empty(t, strings.TrimSpace(h.GetStdout()))
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "a failure state must not write the artifact")
+}

@@ -251,19 +251,19 @@ type CLICommandOutput struct {
 // API's enum value, exactly as async.states, and only the "failure"
 // classification changes runtime behavior. ErrorPointer optionally addresses
 // the failure detail (an object or an array of objects) whose
-// ErrorMessageField string is appended to the failure message.
+// ErrorMessageField string is appended to the failure message. A
+// single-route intent without its own table inherits its operation entry's.
 type CLICommandOutcome struct {
-	StateFrom          string                       `json:"stateFrom,omitempty" yaml:"stateFrom,omitempty"`
-	StatePointer       string                       `json:"statePointer,omitempty" yaml:"statePointer,omitempty"`
-	StateSegments      []CLICommandAsyncPathSegment `json:"stateSegments,omitempty" yaml:"stateSegments,omitempty"`
-	StreamStateFrom    string                       `json:"streamStateFrom,omitempty" yaml:"streamStateFrom,omitempty"`
-	StreamStatePointer string                       `json:"streamStatePointer,omitempty" yaml:"streamStatePointer,omitempty"`
-	States             map[string]string            `json:"states" yaml:"states"`
-	ErrorFrom          string                       `json:"errorFrom,omitempty" yaml:"errorFrom,omitempty"`
-	ErrorPointer       string                       `json:"errorPointer,omitempty" yaml:"errorPointer,omitempty"`
-	StreamErrorFrom    string                       `json:"streamErrorFrom,omitempty" yaml:"streamErrorFrom,omitempty"`
-	StreamErrorPointer string                       `json:"streamErrorPointer,omitempty" yaml:"streamErrorPointer,omitempty"`
-	ErrorMessageField  string                       `json:"errorMessageField,omitempty" yaml:"errorMessageField,omitempty"`
+	StateFrom          string            `json:"stateFrom,omitempty" yaml:"stateFrom,omitempty"`
+	StatePointer       string            `json:"statePointer,omitempty" yaml:"statePointer,omitempty"`
+	StreamStateFrom    string            `json:"streamStateFrom,omitempty" yaml:"streamStateFrom,omitempty"`
+	StreamStatePointer string            `json:"streamStatePointer,omitempty" yaml:"streamStatePointer,omitempty"`
+	States             map[string]string `json:"states" yaml:"states"`
+	ErrorFrom          string            `json:"errorFrom,omitempty" yaml:"errorFrom,omitempty"`
+	ErrorPointer       string            `json:"errorPointer,omitempty" yaml:"errorPointer,omitempty"`
+	StreamErrorFrom    string            `json:"streamErrorFrom,omitempty" yaml:"streamErrorFrom,omitempty"`
+	StreamErrorPointer string            `json:"streamErrorPointer,omitempty" yaml:"streamErrorPointer,omitempty"`
+	ErrorMessageField  string            `json:"errorMessageField,omitempty" yaml:"errorMessageField,omitempty"`
 }
 
 // CLIOperation augments the generated command for one operation. Unlike an
@@ -1428,7 +1428,7 @@ func (d *cliManifestDecoder) decodeOutcome(owner string, node *yaml.Node) (*CLIC
 	for _, entry := range entries {
 		switch entry.Key.Value {
 		case "statePointer":
-			outcome.StateFrom, outcome.StatePointer, outcome.StateSegments, err = cliDecodeAsyncPointer(entry.Value, "output.outcome.statePointer")
+			outcome.StateFrom, outcome.StatePointer, _, err = cliDecodeAsyncPointer(entry.Value, "output.outcome.statePointer")
 		case "streamStatePointer":
 			outcome.StreamStateFrom, outcome.StreamStatePointer, _, err = cliDecodeAsyncPointer(entry.Value, "output.outcome.streamStatePointer")
 		case "states":

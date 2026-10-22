@@ -133,7 +133,41 @@ func (d *cliManifestDecoder) linkManifest(manifest *CLICommandManifest) error {
 			return err
 		}
 	}
+	inheritOperationOutcomes(manifest)
 	return nil
+}
+
+// inheritOperationOutcomes gives a single-route intent without its own
+// output.outcome the table its operation entry declared, so a failure state
+// classified for the operation command also fails the intent. Async intents
+// keep async.states as their only classification.
+func inheritOperationOutcomes(manifest *CLICommandManifest) {
+	outcomes := map[string]*CLICommandOutcome{}
+	for i := range manifest.Operations {
+		if op := &manifest.Operations[i]; op.Output != nil && op.Output.Outcome != nil {
+			outcomes[op.OperationID] = op.Output.Outcome
+		}
+	}
+	if len(outcomes) == 0 {
+		return
+	}
+	for i := range manifest.Commands {
+		cmd := &manifest.Commands[i]
+		if cmd.Source.Type != CLICommandSourceOperation || len(cmd.Source.Routes) != 1 || cmd.Async != nil {
+			continue
+		}
+		if cmd.Output != nil && cmd.Output.Outcome != nil {
+			continue
+		}
+		outcome, ok := outcomes[cmd.Source.Routes[0].OperationID]
+		if !ok {
+			continue
+		}
+		if cmd.Output == nil {
+			cmd.Output = &CLICommandOutput{}
+		}
+		cmd.Output.Outcome = outcome
+	}
 }
 
 func (d *cliManifestDecoder) buildSchemaIndex() error {

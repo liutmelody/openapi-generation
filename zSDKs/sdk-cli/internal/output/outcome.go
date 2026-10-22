@@ -103,8 +103,6 @@ func outcomeDetailMessage(detail interface{}, field string) string {
 				return message
 			}
 		}
-	case string:
-		return strings.TrimSpace(value)
 	}
 	return ""
 }

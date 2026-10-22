@@ -2341,7 +2341,6 @@ declare global {
   type CLICommandOutcome = {
     StateFrom?: string;
     StatePointer?: string;
-    StateSegments?: CLICommandAsyncPathSegment[] | null;
     StreamStateFrom?: string;
     StreamStatePointer?: string;
     States: Record<string, string>;

@@ -5595,3 +5595,54 @@ func TestCLICommands_OutcomeStreamStatesWithoutEnum(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, warnings)
 }
+
+func TestCLICommands_OutcomeInheritedFromOperation(t *testing.T) {
+	manifest, _, err := decodeCLITest(t, `
+version: 1
+commands:
+  check:
+    op: GetTask
+  own:
+    op: GetTask
+    output:
+      outcome:
+        statePointer: $.status
+        states: {in_progress: pending, completed: success, failed: failure, requires_action: failure}
+operations:
+  GetTask:
+    output:
+      outcome:
+        statePointer: $.status
+        errorPointer: $.steps
+        states: {in_progress: pending, completed: success, failed: failure, requires_action: handoff}
+`)
+	require.NoError(t, err)
+	require.Len(t, manifest.Commands, 2)
+	require.Len(t, manifest.Operations, 1)
+
+	inherited := manifest.Commands[0].Output.Outcome
+	require.NotNil(t, inherited)
+	assert.Equal(t, manifest.Operations[0].Output.Outcome, inherited)
+	assert.Equal(t, "/steps", inherited.ErrorPointer)
+
+	own := manifest.Commands[1].Output.Outcome
+	require.NotNil(t, own)
+	assert.Equal(t, "failure", own.States["requires_action"])
+	assert.Empty(t, own.ErrorPointer)
+
+	asyncManifest := strings.Replace(validAsyncManifest, "      params:\n        stream: false\n", "", 1)
+	async, _, err := decodeCLITest(t, strings.TrimSuffix(asyncManifest, "\n")+`
+operations:
+  CreateTask:
+    output:
+      outcome:
+        statePointer: $.status
+        states: {in_progress: pending, completed: success, failed: failure, requires_action: handoff}
+`)
+	require.NoError(t, err)
+	require.Len(t, async.Commands, 1)
+	require.NotNil(t, async.Commands[0].Async)
+	if async.Commands[0].Output != nil {
+		assert.Nil(t, async.Commands[0].Output.Outcome, "an async intent keeps async.states as its only classification")
+	}
+}

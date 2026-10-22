@@ -148,19 +148,8 @@ actions:
       commands:
         outcome-check:
           category: Create
-          summary: Fetch an interaction and fail when it ended in a failure state
+          summary: Fetch an interaction and fail when it ended in a failure state (output.outcome inherited from the operation entry)
           op: outcomeGetInteraction
-          output:
-            outcome:
-              statePointer: $.status
-              errorPointer: $.errors
-              states:
-                queued: pending
-                in_progress: pending
-                completed: success
-                incomplete: success
-                failed: failure
-                cancelled: failure
         outcome-say:
           category: Create
           summary: Stream an interaction and fail when it completes in a failure state

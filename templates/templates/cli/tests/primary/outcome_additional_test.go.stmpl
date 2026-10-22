@@ -26,6 +26,11 @@ func outcomeInteractionJSON(status string, withErrors bool) string {
 
 func newOutcomeServer(t *testing.T, status string, withErrors bool) *httptest.Server {
 	t.Helper()
+	return newOutcomeServerFirstPage(t, status, withErrors, "in_progress")
+}
+
+func newOutcomeServerFirstPage(t *testing.T, status string, withErrors bool, firstPageStatus string) *httptest.Server {
+	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/outcome/interactions/"):
@@ -34,7 +39,7 @@ func newOutcomeServer(t *testing.T, status string, withErrors bool) *httptest.Se
 		case r.URL.Path == "/outcome/interactions":
 			w.Header().Set("Content-Type", "application/json")
 			if r.URL.Query().Get("cursor") == "" {
-				fmt.Fprint(w, `{"status":"in_progress","next_cursor":"page-2","items":[{"id":"int_1","status":"completed"}]}`)
+				fmt.Fprintf(w, `{"status":%q,"next_cursor":"page-2","items":[{"id":"int_1","status":"completed"}]}`, firstPageStatus)
 				return
 			}
 			errorsJSON := ""
@@ -168,13 +173,27 @@ func TestOutcomePaginatedResponse(t *testing.T) {
 			assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
 		})
 	}
-	t.Run("first page only", func(t *testing.T) {
-		srv := newOutcomeServer(t, "failed", true)
-		defer srv.Close()
-		h, err := runOutcome(t, srv.URL, "outcome", "outcome-list-interactions", "--output-format", "json")
-		assert.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
-		assert.Contains(t, h.GetStdout(), `"status":"in_progress"`)
-	})
+	for _, tc := range []struct {
+		firstPage string
+		wantExit  int
+	}{
+		{"in_progress", clierrors.ExitOK},
+		{"failed", clierrors.ExitRuntime},
+	} {
+		t.Run("first page only/"+tc.firstPage, func(t *testing.T) {
+			srv := newOutcomeServerFirstPage(t, "completed", false, tc.firstPage)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, "outcome", "outcome-list-interactions", "--output-format", "json")
+			assert.Equal(t, tc.wantExit, clierrors.ExitCode(err), h.GetStderr())
+			assert.Contains(t, h.GetStdout(), `"status":`+fmt.Sprintf("%q", tc.firstPage))
+			assert.NotContains(t, h.GetStdout(), "int_2", "only the first page is fetched without --all")
+			if tc.wantExit == clierrors.ExitOK {
+				assert.Empty(t, h.GetStderr())
+				return
+			}
+			assert.Contains(t, outcomeErrorEnvelope(t, h.GetStderr())["message"], `ended in failure state "failed"`)
+		})
+	}
 }
 
 func TestOutcomeStreamedResponse(t *testing.T) {

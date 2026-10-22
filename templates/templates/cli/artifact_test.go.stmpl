@@ -597,4 +597,22 @@ func TestArtifact_InteractiveSuppressedByNonInteractiveAndAgentModes(t *testing.
 	}
 }
 {{- end}}
+
+{{- if templateArtifactTestOutcomeFailureState}}
+// A declared failure state (output.outcome) fails the command before any
+// media is written.
+func TestArtifact_DeclaredFailureStateWritesNothing(t *testing.T) {
+	server := artifactTestServer(t, `{{templateArtifactTestOutcomeFailureJSON templateArtifactTestMime}}`)
+	dir := t.TempDir()
+	h := NewCLITestHarness(t)
+
+	err := runArtifact(t, h, server.URL, dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `ended in failure state "{{templateArtifactTestOutcomeFailureState}}"`)
+	assert.Empty(t, strings.TrimSpace(h.GetStdout()))
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.Empty(t, entries, "a failure state must not write the artifact")
+}
+{{- end}}
 {{- end}}

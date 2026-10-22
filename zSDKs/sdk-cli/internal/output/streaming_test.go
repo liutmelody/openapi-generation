@@ -42,7 +42,7 @@ func TestWireStreamItemUnwrapsNestedEnvelopeUnions(t *testing.T) {
 		"inner member unknown": {outerEnvelopeUnion{Inner: &innerEnvelopeUnion{}}, `{"data":"hello","event":"tick","id":"7"}`},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got, err := json.Marshal(wireStreamItem(tc.item, raw, false))
+			got, err := json.Marshal(wireStreamItem(tc.item, raw, nil, false))
 			if err != nil || string(got) != tc.want {
 				t.Fatalf("got %s, error %v; want %s", got, err, tc.want)
 			}
@@ -58,7 +58,7 @@ type openEnvelope struct {
 func TestWireStreamItemKeepsFrameOfEnvelopeWithAdditionalProperties(t *testing.T) {
 	raw := []byte(`{"data":"hello","event":"tick","id":"7"}`)
 	want := `{"data":"hello","event":"tick","id":"7"}`
-	got, err := json.Marshal(wireStreamItem(openEnvelope{Data: "hello"}, raw, false))
+	got, err := json.Marshal(wireStreamItem(openEnvelope{Data: "hello"}, raw, nil, false))
 	if err != nil || string(got) != want {
 		t.Fatalf("got %s, error %v; want %s", got, err, want)
 	}
@@ -139,7 +139,7 @@ func TestWireStreamItemTableKeepsModelLayout(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			var buf bytes.Buffer
-			if err := printTable(&buf, wireStreamItem(tc.item, []byte(tc.raw), true)); err != nil || buf.String() != tc.want {
+			if err := printTable(&buf, wireStreamItem(tc.item, []byte(tc.raw), nil, true)); err != nil || buf.String() != tc.want {
 				t.Fatalf("got %q, error %v; want %q", buf.String(), err, tc.want)
 			}
 		})

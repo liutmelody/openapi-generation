@@ -282,7 +282,7 @@ trackedFiles:
   internal/output/jq.go:
     last_write_checksum: sha1:9e59e92439a8c6269a76be1fa44e85cbbf2dee59
   internal/output/outcome.go:
-    last_write_checksum: sha1:88879e376a238d4394f0664f4510a469b65fa4e4
+    last_write_checksum: sha1:146a06bc0791269a357c3b168e56928b4b0357ed
   internal/output/output.go:
     last_write_checksum: sha1:e1df5123eef6ccdefb5212cdfa100fa5de0e4964
   internal/output/output_test.go:
@@ -296,9 +296,9 @@ trackedFiles:
   internal/output/progress.go:
     last_write_checksum: sha1:f8b839f9394602fe9c30feb3d7155af6235663be
   internal/output/streaming.go:
-    last_write_checksum: sha1:0540cff2240a82082f9437cc107d88c6de1289a3
+    last_write_checksum: sha1:fd4eac1fb2e9fef70d213c134cf6307e884f7cbd
   internal/output/streaming_test.go:
-    last_write_checksum: sha1:9bb53612aa2a3e6d3da96f0c8f8e2ce4ba99b509
+    last_write_checksum: sha1:ed4ffe1ebf27f5b32e69d0d2e4a377d47e1655c4
   internal/output/streamproject.go:
     last_write_checksum: sha1:19d7dec64b1f78cbcfb5420cc4e968aa7aedadd0
   internal/sdk/.gitattributes:
@@ -668,7 +668,7 @@ trackedFiles:
   scripts/install.sh:
     last_write_checksum: sha1:ba255d220bc830375d4f2bc34a7ca01e0a0a8fe2
   tests/artifact_test.go:
-    last_write_checksum: sha1:1cd92a695f091ca03b3410c2024bbbbeec39ce3f
+    last_write_checksum: sha1:7ef06db675926dc5e5b4c718978589fbd37336be
   tests/async_test.go:
     last_write_checksum: sha1:7feb37653f240d6b9c625f4476365b018f738a03
   tests/cli_harness_test.go:
