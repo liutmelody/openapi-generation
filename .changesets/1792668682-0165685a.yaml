@@ -1,0 +1,10 @@
+id: 1792668682-0165685a
+features:
+    - core
+targets:
+    - pythonv2
+type: feat
+bump: patch
+description: add opt-in preservation of unknown model fields
+author: ThomasRooney
+date: "2026-10-22"

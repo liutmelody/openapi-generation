@@ -1,0 +1,157 @@
+openapi: 3.1.0
+info:
+  title: Unknown fields
+  version: 1.0.0
+servers:
+  - url: http://localhost:35123
+paths:
+  /anything/unknown-fields:
+    post:
+      operationId: echoUnknownFields
+      description: Echoes nested objects to exercise preservation of undeclared fields in requests and responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldEnvelope'
+      responses:
+        '200':
+          description: The echoed JSON request and transport metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [json]
+                properties:
+                  json:
+                    $ref: '#/components/schemas/FieldEnvelope'
+components:
+  schemas:
+    FieldEnvelope:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        child:
+          $ref: '#/components/schemas/FieldNode'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldNode'
+        lookup:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/FieldNode'
+        choice:
+          oneOf:
+            - $ref: '#/components/schemas/TextChoice'
+            - $ref: '#/components/schemas/NumberChoice'
+          discriminator:
+            propertyName: kind
+            mapping:
+              text: '#/components/schemas/TextChoice'
+              number: '#/components/schemas/NumberChoice'
+        plainChoice:
+          anyOf:
+            - $ref: '#/components/schemas/TextFields'
+            - $ref: '#/components/schemas/NumberFields'
+        requiredOnly:
+          $ref: '#/components/schemas/RequiredFields'
+        composed:
+          allOf:
+            - $ref: '#/components/schemas/FieldNode'
+            - type: object
+              properties:
+                category:
+                  type: string
+        split:
+          $ref: '#/components/schemas/SplitFields'
+        open:
+          $ref: '#/components/schemas/OpenFields'
+        typed:
+          $ref: '#/components/schemas/TypedFields'
+        closed:
+          $ref: '#/components/schemas/ClosedFields'
+        arbitrary: {}
+    FieldNode:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+        nullable:
+          type: [string, 'null']
+        child:
+          $ref: '#/components/schemas/FieldNode'
+    TextChoice:
+      type: object
+      required: [kind, text]
+      properties:
+        kind:
+          type: string
+          enum: [text]
+        text:
+          type: string
+    NumberChoice:
+      type: object
+      required: [kind, number]
+      properties:
+        kind:
+          type: string
+          enum: [number]
+        number:
+          type: integer
+    OpenFields:
+      type: object
+      additionalProperties: true
+      properties:
+        label:
+          type: string
+    TypedFields:
+      type: object
+      additionalProperties:
+        type: string
+      properties:
+        label:
+          type: string
+    ClosedFields:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+    TextFields:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        label:
+          type: string
+    NumberFields:
+      type: object
+      required: [number]
+      properties:
+        number:
+          type: integer
+        label:
+          type: string
+    RequiredFields:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+    SplitFields:
+      type: object
+      properties:
+        label:
+          type: string
+        id:
+          type: string
+          readOnly: true
+        secret:
+          type: string
+          writeOnly: true

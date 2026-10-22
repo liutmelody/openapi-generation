@@ -7,7 +7,8 @@
 {{- $hasOptionalField := gt (len $optionalFields) 0 -}}
 {{- $hasNullableField := gt (len $nullableFields) 0 -}}
 {{- $hasAdditionalProperties := hasAdditionalPropertiesField $type -}}
-{{- if $hasAdditionalProperties}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
+{{- $preserveUnknownFields := .Global.Config.PreserveUnknownFields -}}
+{{- if or $hasAdditionalProperties $preserveUnknownFields}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
 {{- $fields := (sortFields $type.Fields) -}}
 {{- $className := sanitizeClassName $type.Name }}
 {{- $startsWithTest := hasPrefix "Test" $className }}
@@ -22,8 +23,10 @@ class {{$className}}(BaseModel):
     {{- if $startsWithTest}}
     __test__ = False
     {{- end}}
-    {{- if $hasAdditionalProperties}}
+    {{- if or $hasAdditionalProperties $preserveUnknownFields}}
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
+    {{- end}}
+    {{- if $hasAdditionalProperties}}
     __pydantic_extra__:  {{sanitizeAdditionalPropertiesField (getAdditionalPropertiesField $type) $usageLocation $local}}
     {{- end}}
     
@@ -94,7 +97,7 @@ class {{$className}}(BaseModel):
         for n, f in type(self).model_fields.items():
             k = f.alias or n
             val = serialized.get(k, serialized.get(n))
-            {{- if $hasAdditionalProperties}}
+            {{- if or $hasAdditionalProperties $preserveUnknownFields}}
             serialized.pop(k, serialized.pop(n, None))
             {{- end}}
 
@@ -124,7 +127,7 @@ class {{$className}}(BaseModel):
                     m[k] = val
                 {{- end}}
 
-        {{- if $hasAdditionalProperties}}
+        {{- if or $hasAdditionalProperties $preserveUnknownFields}}
         for k, v in serialized.items():
             m[k] = v
         {{- end}}

@@ -325,6 +325,15 @@ function getConfigFields(
       ValidationRegex: /^(true|false)$/.source,
       ValidationMessage: "true or false only",
     },
+    preserveUnknownFields: {
+      Name: "preserveUnknownFields",
+      Required: false,
+      DefaultValue: false,
+      Description:
+        "Preserve undeclared fields in request and response models, including nested models. Explicitly typed additional properties retain their validation. Disabled by default.",
+      ValidationRegex: /^(true|false)$/.source,
+      ValidationMessage: "true or false only",
+    },
     responseSchemaValidation: {
       Name: "responseSchemaValidation",
       Required: false,

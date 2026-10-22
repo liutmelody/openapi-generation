@@ -1,0 +1,93 @@
+import asyncio
+import json
+
+import httpx
+import pydantic
+import pytest
+
+from openapi import SDK, models
+from .common_helpers import HTTPBIN_URL
+
+
+PRESERVE_UNKNOWN_FIELDS = {{if .Global.Config.PreserveUnknownFields}}True{{else}}False{{end}}
+
+
+CASES = [
+    ({"future": "value"}, {}),
+    ({"future": False}, {}),
+    ({"future": None}, {}),
+    ({"plainChoice": {"text": "value", "future": True}}, {"plainChoice": {"text": "value"}}),
+    ({"plainChoice": {"number": 3, "future": True}}, {"plainChoice": {"number": 3}}),
+    ({"requiredOnly": {"label": "required", "future": True}}, {"requiredOnly": {"label": "required"}}),
+    ({"future": 0}, {}),
+    ({"composed": {"displayName": "child", "category": "combined", "future": True}}, {"composed": {"displayName": "child", "category": "combined"}}),
+    ({"split": {"label": "split", "future": True}}, {"split": {"label": "split"}}),
+    ({"future": []}, {}),
+    ({"future": {"nested": [None, False, 0, "value"]}}, {}),
+    ({"child": {"displayName": "child", "future": True}}, {"child": {"displayName": "child"}}),
+    ({"child": {"displayName": "child", "child": {"displayName": "grandchild", "future": True}}}, {"child": {"displayName": "child", "child": {"displayName": "grandchild"}}}),
+    ({"children": [{"displayName": "child", "future": True}]}, {"children": [{"displayName": "child"}]}),
+    ({"lookup": {"one": {"displayName": "child", "future": True}}}, {"lookup": {"one": {"displayName": "child"}}}),
+    ({"choice": {"kind": "text", "text": "value", "future": True}}, {"choice": {"kind": "text", "text": "value"}}),
+    ({"choice": {"kind": "number", "number": 3, "future": True}}, {"choice": {"kind": "number", "number": 3}}),
+    ({"closed": {"label": "closed", "future": True}}, {"closed": {"label": "closed"}}),
+    ({"open": {"label": "open", "future": True}}, {"open": {"label": "open", "future": True}}),
+    ({"typed": {"label": "typed", "future": "value"}}, {"typed": {"label": "typed", "future": "value"}}),
+    ({"arbitrary": {"future": {"nullable": None}}}, {"arbitrary": {"future": {"nullable": None}}}),
+    ({"child": {"displayName": "child", "nullable": None}}, {"child": {"displayName": "child", "nullable": None}}),
+]
+
+
+@pytest.mark.parametrize("fields, default_fields", CASES)
+@pytest.mark.parametrize("as_model", [False, True])
+@pytest.mark.parametrize("as_async", [False, True])
+def test_unknown_fields_echo(fields, default_fields, as_model, as_async):
+    payload = {"label": "root", **fields}
+    request = models.FieldEnvelopeInput.model_validate(payload) if as_model else payload
+    if as_async:
+        async def send():
+            async with SDK(server_url=HTTPBIN_URL) as sdk:
+                return await sdk.echo_unknown_fields_async(request=request)
+        response = asyncio.run(send())
+    else:
+        with SDK(server_url=HTTPBIN_URL) as sdk:
+            response = sdk.echo_unknown_fields(request=request)
+    expected = {"label": "root", **(fields if PRESERVE_UNKNOWN_FIELDS else default_fields)}
+    assert response.http_meta.response.json()["json"] == expected
+    assert response.object.json_.model_dump(mode="json", by_alias=True, exclude_none=not PRESERVE_UNKNOWN_FIELDS) == expected
+    assert json.loads(response.object.json_.model_dump_json(by_alias=True, exclude_none=not PRESERVE_UNKNOWN_FIELDS)) == expected
+    assert ("headers" in response.object.model_dump()) is PRESERVE_UNKNOWN_FIELDS
+
+
+def test_response_only_unknown_fields():
+    payload = {"json": {"label": "root", "child": {"displayName": "child", "future": True}}, "future": {"value": 1}}
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=payload))
+    with httpx.Client(transport=transport) as client:
+        with SDK(server_url=HTTPBIN_URL, client=client) as sdk:
+            response = sdk.echo_unknown_fields(request={"label": "root"})
+    dumped = response.object.model_dump(mode="json", by_alias=True, exclude_none=not PRESERVE_UNKNOWN_FIELDS)
+    assert ("future" in dumped) is PRESERVE_UNKNOWN_FIELDS
+    assert ("future" in dumped["json"]["child"]) is PRESERVE_UNKNOWN_FIELDS
+
+
+def test_typed_additional_properties_still_validate():
+    with pytest.raises(pydantic.ValidationError):
+        models.FieldEnvelopeInput.model_validate({"label": "root", "typed": {"future": {"invalid": True}}})
+
+
+def test_unknown_fields_dump_filters():
+    model = models.FieldEnvelopeInput.model_validate({"label": "root", "future": True, "future_null": None})
+    assert ("future_null" in model.model_dump()) is PRESERVE_UNKNOWN_FIELDS
+    assert "future_null" not in model.model_dump(exclude_none=True)
+    assert "future" not in model.model_dump(exclude={"future"})
+    assert model.model_dump(include={"label"}) == {"label": "root"}
+
+
+def test_response_model_can_be_sent_again():
+    payload = {"label": "root", "child": {"displayName": "child", "future": {"enabled": False}}}
+    with SDK(server_url=HTTPBIN_URL) as sdk:
+        first = sdk.echo_unknown_fields(request=payload)
+        second = sdk.echo_unknown_fields(request=first.object.json_.model_dump(by_alias=True))
+    expected = payload if PRESERVE_UNKNOWN_FIELDS else {"label": "root", "child": {"displayName": "child"}}
+    assert second.http_meta.response.json()["json"] == expected
+    assert second.object.json_.model_dump(by_alias=True, exclude_none=True) == expected
