@@ -278,7 +278,7 @@ def marshal_json(val, typ):
 
     m = marshaller(body=val)
 
-    d = m.model_dump(by_alias=True, mode="json", exclude_none={{if .Global.Config.PreserveUnknownFields}}False{{else}}True{{end}})
+    d = m.model_dump(by_alias=True, mode="json", exclude_none={{if .Global.Config.PreserveUnknownFields}}getattr(m, "body") is None{{else}}True{{end}})
 
     if len(d) == 0:
         return ""

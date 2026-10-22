@@ -1,11 +1,13 @@
 import asyncio
 import json
+from typing import Annotated, Any, List, Optional
 
 import httpx
 import pydantic
 import pytest
 
-from openapi import SDK, errors, models
+from openapi import SDK, errors, models, utils
+from openapi.types import Nullable
 from .common_helpers import HTTPBIN_URL, record_test
 
 
@@ -106,3 +108,25 @@ def test_error_response_unknown_fields():
     dumped = data.model_dump(mode="json", by_alias=True)
     assert ("future" in dumped) is PRESERVE_UNKNOWN_FIELDS
     assert ("future" in dumped["detail"]) is PRESERVE_UNKNOWN_FIELDS
+
+
+def test_omitted_json_query_stays_empty():
+    with SDK(server_url=HTTPBIN_URL) as sdk:
+        response = sdk.echo_optional_json_query()
+    assert response.http_meta.response.request.url.params.get("filter", "") == ""
+
+
+@pytest.mark.parametrize("typ", [Optional[int], Optional[List[int]], Optional[models.FieldNode], Any])
+def test_top_level_none_serialization(typ):
+    assert utils.marshal_json(None, typ) == ""
+
+
+def test_top_level_none_still_validates():
+    with pytest.raises(pydantic.ValidationError):
+        utils.marshal_json(None, models.FieldNode)
+    assert utils.marshal_json(None, Nullable[models.FieldNode]) == "null"
+
+
+def test_coerced_top_level_none_stays_empty():
+    typ = Annotated[Optional[int], pydantic.BeforeValidator(lambda value: None)]
+    assert utils.marshal_json("empty", typ) == ""

@@ -5,6 +5,31 @@ info:
 servers:
   - url: http://localhost:35123
 paths:
+  /anything/unknown-fields-query:
+    get:
+      operationId: echoOptionalJsonQuery
+      description: Echoes an optional JSON query parameter without changing its omission semantics.
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  label:
+                    type: string
+      responses:
+        '200':
+          description: The echoed request URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
   /anything/unknown-fields:
     post:
       operationId: echoUnknownFields
