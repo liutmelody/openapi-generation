@@ -106,10 +106,33 @@ func (u ChatRequest) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("could not marshal union type ChatRequest: all fields are null")
 }
 
+type Status string
+
+const (
+	StatusStreaming Status = "streaming"
+	StatusCompleted Status = "completed"
+	StatusFailed    Status = "failed"
+)
+
+func (e Status) ToPointer() *Status {
+	return &e
+}
+
+// IsExact returns true if the value matches a known enum value, false otherwise.
+func (e *Status) IsExact() bool {
+	if e != nil {
+		switch *e {
+		case "streaming", "completed", "failed":
+			return true
+		}
+	}
+	return false
+}
+
 type ChatData struct {
 	Content    *string `json:"content,omitzero"`
 	ResourceID *string `json:"resource_id,omitzero"`
-	Status     *string `json:"status,omitzero"`
+	Status     *Status `json:"status,omitzero"`
 }
 
 func (c *ChatData) GetContent() *string {
@@ -126,7 +149,7 @@ func (c *ChatData) GetResourceID() *string {
 	return c.ResourceID
 }
 
-func (c *ChatData) GetStatus() *string {
+func (c *ChatData) GetStatus() *Status {
 	if c == nil {
 		return nil
 	}

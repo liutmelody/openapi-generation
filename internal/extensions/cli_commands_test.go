@@ -5517,6 +5517,9 @@ func TestCLICommands_OutcomeErrors(t *testing.T) {
 		{"stream pointer on discrete operation", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        streamStatePointer: $.status\n        states:\n          in_progress", 1), "has no streaming (text/event-stream or JSONL) success response"},
 		{"stream pointer misses every event", strings.Replace(base, "streamStatePointer: $.data.reason", "streamStatePointer: $.data.outcome", 1), "does not resolve in any event shape"},
 		{"error pointer must be object or array", strings.Replace(base, "errorPointer: $.steps", "errorPointer: $.id", 1), "selected failure detail must be an object or an array"},
+		{"error pointer misses every response variant", strings.Replace(base, "errorPointer: $.steps", "errorPointer: $.step", 1), `output.outcome.errorPointer $.step does not resolve in any application/json 2xx response variant of operation "GetTask" (did you mean "steps"?)`},
+		{"stream state not an enum member", strings.Replace(base, "          done: success\n          cancelled: failure", "          done: success\n          canceled: failure", 1), `output.outcome.states classifies "canceled", which is not an enum member at $.data.reason in operation "StreamTask" (did you mean "cancelled"?)`},
+		{"stream enum member unclassified", strings.Replace(base, "          done: success\n          cancelled: failure", "          cancelled: failure", 1), `output.outcome.states does not classify enum member "done" from $.data.reason in operation "StreamTask"`},
 		{"stream error pointer misses every event", strings.Replace(base, "streamErrorPointer: $.data.error", "streamErrorPointer: $.data.failure", 1), "output.outcome.streamErrorPointer $.data.failure does not resolve in any event shape"},
 		{"stream error pointer must be object or array", strings.Replace(base, "streamErrorPointer: $.data.error", "streamErrorPointer: $.data.event_id", 1), "resolves to a string in one event shape; the failure detail must be an object or an array"},
 		{"error pointer without state pointer", strings.Replace(base, "        streamStatePointer: $.data.reason\n", "        streamStatePointer: $.data.reason\n        errorPointer: $.data.reason\n", 1), "output.outcome.errorPointer requires statePointer"},
@@ -5530,4 +5533,65 @@ func TestCLICommands_OutcomeErrors(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
+}
+
+const cliOutcomeUnionTaskResult = `    TaskResult:
+      oneOf:
+        - $ref: '#/components/schemas/TaskSettled'
+        - $ref: '#/components/schemas/TaskFailed'
+    TaskSettled:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, completed, failed, requires_action]
+    TaskFailed:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, completed, failed, requires_action]
+        steps:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/NoteStep'
+              - $ref: '#/components/schemas/OutputStep'
+`
+
+func TestCLICommands_OutcomeErrorPointerAnyVariant(t *testing.T) {
+	start := strings.Index(cliCommandsTestSpec, "    TaskResult:\n")
+	end := strings.Index(cliCommandsTestSpec, "    NoteStep:\n")
+	require.True(t, start >= 0 && end > start)
+	spec := cliCommandsTestSpec[:start] + cliOutcomeUnionTaskResult + cliCommandsTestSpec[end:]
+
+	manifest, _, err := decodeCLIWithSpec(t, spec, validOutcomeManifest)
+	require.NoError(t, err)
+	require.Len(t, manifest.Operations, 1)
+	assert.Equal(t, "/steps", manifest.Operations[0].Output.Outcome.ErrorPointer)
+
+	_, _, err = decodeCLIWithSpec(t, spec, strings.Replace(validOutcomeManifest, "errorPointer: $.steps", "errorPointer: $.id", 1))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "selected failure detail must be an object or an array")
+
+	_, _, err = decodeCLIWithSpec(t, spec, strings.Replace(validOutcomeManifest, "errorPointer: $.steps", "errorPointer: $.detail", 1))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `output.outcome.errorPointer $.detail does not resolve in any application/json 2xx response variant of operation "GetTask"`)
+}
+
+func TestCLICommands_OutcomeStreamStatesWithoutEnum(t *testing.T) {
+	manifest, warnings, err := decodeCLITest(t, strings.Replace(validOutcomeManifest, "streamStatePointer: $.data.reason", "streamStatePointer: $.data.event_id", 1))
+	require.NoError(t, err)
+	require.Len(t, manifest.Commands, 2)
+	assert.Equal(t, "/data/event_id", manifest.Commands[1].Output.Outcome.StreamStatePointer)
+	require.Len(t, warnings, 1, warnings)
+	assert.Equal(t, `command "follow" output.outcome.streamStatePointer $.data.event_id in operation "StreamTask" does not select a closed string enum in every event shape; states cannot be verified at generation time, and a state missing from the table keeps exit 0 at runtime`, warnings[0])
+
+	_, warnings, err = decodeCLITest(t, validOutcomeManifest)
+	require.NoError(t, err)
+	assert.Empty(t, warnings)
 }

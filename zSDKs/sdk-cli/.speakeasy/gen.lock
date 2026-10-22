@@ -442,7 +442,7 @@ trackedFiles:
   internal/sdk/models/operations/binaryandstringupload.go:
     last_write_checksum: sha1:7fb4d81daaf907f9894a74cbcda0474399461414
   internal/sdk/models/operations/chat.go:
-    last_write_checksum: sha1:3a02f8210b06c6ba9396951705081afb2f50b664
+    last_write_checksum: sha1:601be5db5ea03d1206810ce26998975748283dd5
   internal/sdk/models/operations/createnamespaceconflict.go:
     last_write_checksum: sha1:fa39c1f2ddb12ccafded76afcf4cd754aa6b4d21
   internal/sdk/models/operations/createsinglenamespacefoopet.go:
@@ -934,7 +934,7 @@ trackedFiles:
   tests/mockserver/internal/sdk/models/operations/binaryandstringupload.go:
     last_write_checksum: sha1:abbd174263b69f5b19baaec3685c1cfd4375aea6
   tests/mockserver/internal/sdk/models/operations/chat.go:
-    last_write_checksum: sha1:3d2c580d525c0c014898e1ef187b58bacbbb597c
+    last_write_checksum: sha1:68425147994d2985f0a230579ce88d0b6d18704d
   tests/mockserver/internal/sdk/models/operations/createnamespaceconflict.go:
     last_write_checksum: sha1:c78a9d0dbb60e9e2e14aeb9d8d9ac5a6faf3c001
   tests/mockserver/internal/sdk/models/operations/createsinglenamespacefoopet.go:

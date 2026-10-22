@@ -3,6 +3,7 @@
 package operations
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mockserver/internal/sdk/models/components"
@@ -73,10 +74,39 @@ func (u ChatRequest) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("could not marshal union type ChatRequest: all fields are null")
 }
 
+type Status string
+
+const (
+	StatusStreaming Status = "streaming"
+	StatusCompleted Status = "completed"
+	StatusFailed    Status = "failed"
+)
+
+func (e Status) ToPointer() *Status {
+	return &e
+}
+func (e *Status) UnmarshalJSON(data []byte) error {
+	var v string
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch v {
+	case "streaming":
+		fallthrough
+	case "completed":
+		fallthrough
+	case "failed":
+		*e = Status(v)
+		return nil
+	default:
+		return fmt.Errorf("invalid value for Status: %v", v)
+	}
+}
+
 type ChatData struct {
 	Content    *string `json:"content,omitempty"`
 	ResourceID *string `json:"resource_id,omitempty"`
-	Status     *string `json:"status,omitempty"`
+	Status     *Status `json:"status,omitempty"`
 }
 
 func (o *ChatData) GetContent() *string {
@@ -93,7 +123,7 @@ func (o *ChatData) GetResourceID() *string {
 	return o.ResourceID
 }
 
-func (o *ChatData) GetStatus() *string {
+func (o *ChatData) GetStatus() *Status {
 	if o == nil {
 		return nil
 	}

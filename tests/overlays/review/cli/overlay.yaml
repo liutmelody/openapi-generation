@@ -71,3 +71,4 @@ actions:
     update:
       status:
         type: string
+        enum: [streaming, completed, failed]
