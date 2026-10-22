@@ -266,6 +266,33 @@ func TestHandleArray(t *testing.T) {
 				Build(),
 		},
 		{
+			name: "ArrayWithConstNullableItems",
+			schemasYAML: `TestSchema:
+  type: array
+  items:
+    type: string
+    nullable: true
+  const:
+    - read`,
+			schemaName: "TestSchema",
+			mockFeatures: func() *testutils.MockFeaturesConfig {
+				config := testutils.NewMockFeaturesConfig()
+				config.SupportedFeatures = map[features.Feature]bool{
+					features.FeatureConstArrays:       true,
+					features.FeatureConstsAndDefaults: true,
+				}
+				return config
+			},
+			expected: testutils.NewFieldDef("strings",
+				testutils.NewTypeDef(ast.DataTypeArray).
+					WithItemType(testutils.NewTypeDef(ast.DataTypeString).WithLocation(&yaml.Node{Line: 11, Column: 9}).WithValidations(&ast.Validations{}).Build()).
+					WithContainsNull(true).
+					WithLocation(&yaml.Node{Line: 9, Column: 7}).
+					WithValidations(&ast.Validations{}).
+					Build()).
+				Build(),
+		},
+		{
 			name: "ArrayWithExample",
 			schemasYAML: `TestSchema:
   type: array

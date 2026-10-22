@@ -3,6 +3,7 @@ features:
     - constsAndDefaults
 targets:
     - go
+    - cli
 type: fix
 bump: patch
 description: const values on array and map fields are emitted when marshaling and accepted when unmarshaling

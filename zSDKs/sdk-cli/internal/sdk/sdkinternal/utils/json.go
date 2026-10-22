@@ -447,14 +447,63 @@ func implementsJSONMarshaler(v interface{}) bool {
 }
 
 func constJSONValuesEqual(received json.RawMessage, constValue string) bool {
-	var got, want interface{}
-	if err := json.Unmarshal(received, &got); err != nil {
+	got, err := decodeJSONWithNumbers(received)
+	if err != nil {
 		return false
 	}
-	if err := json.Unmarshal([]byte(constValue), &want); err != nil {
+	want, err := decodeJSONWithNumbers([]byte(constValue))
+	if err != nil {
 		return false
 	}
-	return reflect.DeepEqual(got, want)
+	return jsonValuesEqual(got, want)
+}
+
+func decodeJSONWithNumbers(data []byte) (interface{}, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var value interface{}
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func jsonValuesEqual(a, b interface{}) bool {
+	switch av := a.(type) {
+	case json.Number:
+		bv, ok := b.(json.Number)
+		if !ok {
+			return false
+		}
+		ar, aok := new(big.Rat).SetString(av.String())
+		br, bok := new(big.Rat).SetString(bv.String())
+		return aok && bok && ar.Cmp(br) == 0
+	case map[string]interface{}:
+		bv, ok := b.(map[string]interface{})
+		if !ok || len(av) != len(bv) {
+			return false
+		}
+		for key, value := range av {
+			other, ok := bv[key]
+			if !ok || !jsonValuesEqual(value, other) {
+				return false
+			}
+		}
+		return true
+	case []interface{}:
+		bv, ok := b.([]interface{})
+		if !ok || len(av) != len(bv) {
+			return false
+		}
+		for i := range av {
+			if !jsonValuesEqual(av[i], bv[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		return reflect.DeepEqual(a, b)
+	}
 }
 
 func handleDefaultConstValue(tagValue string, val interface{}, tag reflect.StructTag) json.RawMessage {
