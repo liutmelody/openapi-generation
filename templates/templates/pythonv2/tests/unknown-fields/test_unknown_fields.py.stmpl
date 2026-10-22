@@ -113,7 +113,7 @@ def test_error_response_unknown_fields():
 def test_omitted_json_query_stays_empty():
     with SDK(server_url=HTTPBIN_URL) as sdk:
         response = sdk.echo_optional_json_query()
-    assert response.http_meta.response.request.url.params.get("filter", "") == ""
+    assert response.http_meta.response.request.url.params["filter"] == ""
 
 
 @pytest.mark.parametrize("typ", [Optional[int], Optional[List[int]], Optional[models.FieldNode], Any])
