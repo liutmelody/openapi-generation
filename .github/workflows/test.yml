@@ -192,8 +192,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Test generated Windows installer
-        shell: ${{ matrix.shell }}
+      - name: Test generated Windows installer (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./scripts/test-windows-installer.ps1
+      - name: Test generated Windows installer (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: ./scripts/test-windows-installer.ps1
   test-cli:
     if: always() && needs.detect-targets.outputs.run-cli == 'true'
