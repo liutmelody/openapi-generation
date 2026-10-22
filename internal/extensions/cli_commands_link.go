@@ -2189,6 +2189,10 @@ func (w *cliStreamPathWalker) walk(schema any, segments []cliPathSegment, seen [
 			w.err = fmt.Errorf("%s %s %s: referenced schema %q does not exist in components.schemas%s", w.owner, w.field, w.selectPath, name, cliDidYouMean(name, cliComponentNames(w.d.schemaIndex.components)))
 			return
 		}
+		if len(segments) == 0 && cliRefHasSiblingConstraints(schemaMap) {
+			w.checkLeaf(schemaMap, seen)
+			return
+		}
 		w.walk(component, segments, append(seen, name))
 		return
 	}
@@ -2361,67 +2365,128 @@ func (w *cliStreamPathWalker) recordLeafEnum(schemaMap map[string]any, seen []st
 	}
 }
 
-// leafEnum reports the string members a string leaf is closed over: a const,
-// a closed enum, or a union/allOf whose every non-null arm is itself closed.
+// leafEnum reports the string members a string leaf is closed over. Every
+// keyword on the schema constrains conjunctively: a const, a closed enum, the
+// referenced component, each allOf arm, and a oneOf/anyOf (whose non-null arms
+// must all be closed) each contribute a member set, and the leaf is closed
+// over their intersection. Arms that only set a type constrain nothing.
 func (w *cliStreamPathWalker) leafEnum(schemaMap map[string]any, seen []string) (values []string, closed, open bool) {
-	if ref, ok := schemaMap["$ref"].(string); ok {
-		name := strings.TrimPrefix(ref, cliComponentRefPrefix)
-		if !strings.HasPrefix(ref, cliComponentRefPrefix) || cliContains(seen, name) {
-			return nil, false, false
-		}
-		component, ok := w.d.schemaIndex.components[name].(map[string]any)
-		if !ok {
-			return nil, false, false
-		}
-		return w.leafEnum(component, append(seen, name))
-	}
 	if unknownValues, ok := schemaMap["x-speakeasy-unknown-values"].(string); ok && unknownValues == "allow" {
 		return nil, false, true
 	}
-	if constVal, ok := schemaMap["const"]; ok {
-		if s, isString := constVal.(string); isString {
-			return []string{s}, true, false
+	var sources [][]string
+	if ref, ok := schemaMap["$ref"].(string); ok {
+		name := strings.TrimPrefix(ref, cliComponentRefPrefix)
+		if strings.HasPrefix(ref, cliComponentRefPrefix) && !cliContains(seen, name) {
+			if component, ok := w.d.schemaIndex.components[name].(map[string]any); ok {
+				refValues, refClosed, refOpen := w.leafEnum(component, append(seen, name))
+				if refOpen {
+					return nil, false, true
+				}
+				if refClosed {
+					sources = append(sources, refValues)
+				}
+			}
 		}
-		return nil, constVal == nil, false
 	}
-	var branches []any
-	if members := cliUnionMembers(schemaMap); members != nil {
-		branches = append(branches, members...)
+	if constVal, ok := schemaMap["const"]; ok {
+		switch s := constVal.(type) {
+		case string:
+			sources = append(sources, []string{s})
+		case nil:
+			sources = append(sources, nil)
+		default:
+			return nil, false, false
+		}
+	}
+	if enum, ok := schemaMap["enum"].([]any); ok && len(enum) > 0 {
+		var members []string
+		for _, value := range enum {
+			if s, isString := value.(string); isString {
+				members = append(members, s)
+			}
+		}
+		sources = append(sources, members)
 	}
 	if allOf, ok := schemaMap["allOf"].([]any); ok {
-		branches = append(branches, allOf...)
-	}
-	if len(branches) > 0 {
-		closed = true
-		for _, branch := range branches {
-			branchMap, ok := branch.(map[string]any)
+		for _, arm := range allOf {
+			armMap, ok := arm.(map[string]any)
 			if !ok {
 				continue
 			}
-			if types := cliSchemaTypes(branchMap); len(types) == 1 && types[0] == "null" {
-				continue
-			}
-			if cliSchemaIsAnnotationOnly(branchMap) {
-				continue
-			}
-			branchValues, branchClosed, branchOpen := w.leafEnum(branchMap, seen)
-			if branchOpen {
+			armValues, armClosed, armOpen := w.leafEnum(armMap, seen)
+			if armOpen {
 				return nil, false, true
 			}
-			closed = closed && branchClosed
-			values = append(values, branchValues...)
-		}
-		return values, closed, false
-	}
-	if enum, ok := schemaMap["enum"].([]any); ok && len(enum) > 0 {
-		for _, value := range enum {
-			if s, isString := value.(string); isString {
-				values = append(values, s)
+			if armClosed {
+				sources = append(sources, armValues)
 			}
 		}
-		return values, true, false
 	}
-	return nil, false, false
+	if members := cliUnionMembers(schemaMap); members != nil {
+		unionClosed := true
+		var unionValues []string
+		for _, member := range members {
+			memberMap, ok := member.(map[string]any)
+			if !ok {
+				continue
+			}
+			if types := cliSchemaTypes(memberMap); len(types) == 1 && types[0] == "null" {
+				continue
+			}
+			if cliSchemaIsAnnotationOnly(memberMap) {
+				continue
+			}
+			memberValues, memberClosed, memberOpen := w.leafEnum(memberMap, seen)
+			if memberOpen {
+				return nil, false, true
+			}
+			unionClosed = unionClosed && memberClosed
+			unionValues = append(unionValues, memberValues...)
+		}
+		if !unionClosed {
+			return nil, false, false
+		}
+		sources = append(sources, unionValues)
+	}
+	if len(sources) == 0 {
+		return nil, false, false
+	}
+	return cliIntersectStrings(sources), true, false
+}
+
+// cliIntersectStrings keeps the members of the first set present in every
+// other set, in first-set order.
+func cliIntersectStrings(sets [][]string) []string {
+	var out []string
+	for _, candidate := range sets[0] {
+		if cliContains(out, candidate) {
+			continue
+		}
+		keep := true
+		for _, other := range sets[1:] {
+			if !cliContains(other, candidate) {
+				keep = false
+				break
+			}
+		}
+		if keep {
+			out = append(out, candidate)
+		}
+	}
+	return out
+}
+
+// cliRefHasSiblingConstraints reports a reference whose siblings narrow the
+// referenced schema, so the leaf is checked here rather than at the target.
+func cliRefHasSiblingConstraints(schemaMap map[string]any) bool {
+	siblings := make(map[string]any, len(schemaMap))
+	for key, value := range schemaMap {
+		if key != "$ref" {
+			siblings[key] = value
+		}
+	}
+	return !cliSchemaIsAnnotationOnly(siblings)
 }
 
 // cliSchemaIsAnnotationOnly reports a schema that constrains nothing (an

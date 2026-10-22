@@ -5646,3 +5646,30 @@ operations:
 		assert.Nil(t, async.Commands[0].Output.Outcome, "an async intent keeps async.states as its only classification")
 	}
 }
+
+func TestCLICommands_OutcomeStreamStateAllOfIntersectsEnums(t *testing.T) {
+	const stopReason = "    StopReason:\n      type: string\n      enum: [done, cancelled]\n"
+	require.Contains(t, cliCommandsTestSpec, stopReason)
+	typoTable := strings.Replace(validOutcomeManifest, "          done: success\n          cancelled: failure", "          done: success\n          canceled: failure", 1)
+
+	for _, tc := range []struct {
+		name   string
+		schema string
+	}{
+		{"type-only arm", "    StopReason:\n      allOf:\n        - type: string\n        - enum: [done, cancelled]\n"},
+		{"two enum arms", "    StopReason:\n      allOf:\n        - type: string\n          enum: [done, cancelled, extra]\n        - enum: [done, cancelled]\n"},
+		{"enum beside ref", "    StopReason:\n      $ref: '#/components/schemas/StopReasonBase'\n      enum: [done, cancelled]\n    StopReasonBase:\n      type: string\n      enum: [done, cancelled, extra]\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := strings.Replace(cliCommandsTestSpec, stopReason, tc.schema, 1)
+
+			_, warnings, err := decodeCLIWithSpec(t, spec, validOutcomeManifest)
+			require.NoError(t, err)
+			assert.Empty(t, warnings)
+
+			_, _, err = decodeCLIWithSpec(t, spec, typoTable)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `output.outcome.states classifies "canceled", which is not an enum member at $.data.reason in operation "StreamTask" (did you mean "cancelled"?)`)
+		})
+	}
+}
