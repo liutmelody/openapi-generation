@@ -3,7 +3,6 @@
 package output
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,9 +12,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// outcomeAnnotation carries the output.outcome declaration: which response
-// member holds the terminal state, how each state is classified, and where
-// the failure detail lives.
 const outcomeAnnotation = "speakeasy_outcome"
 
 type outcomeConfig struct {
@@ -45,9 +41,6 @@ func activeOutcome(cmd *cobra.Command) *outcomeConfig {
 	return &cfg
 }
 
-// outcomeError reports a successful response whose declared state is
-// classified as failure. It carries the state and the failure detail into
-// the machine-readable error envelope.
 type outcomeError struct {
 	message string
 	state   string
@@ -78,11 +71,6 @@ func outcomeResultFailure(cmd *cobra.Command, res interface{}) *outcomeError {
 	return outcomeFailure(cmd, cfg, payload, cfg.StatePointer, cfg.ErrorPointer)
 }
 
-// outcomeFailure classifies the state at statePointer inside payload. It
-// returns nil when the state is absent, not a string, unknown, or not
-// classified as failure: the linker guarantees declared enums are fully
-// classified, so an unknown value comes from a newer API and is left to the
-// caller's judgement rather than failing the command.
 func outcomeFailure(cmd *cobra.Command, cfg *outcomeConfig, payload interface{}, statePointer, errorPointer string) *outcomeError {
 	if cfg == nil || statePointer == "" {
 		return nil
@@ -104,9 +92,6 @@ func outcomeFailure(cmd *cobra.Command, cfg *outcomeConfig, payload interface{},
 	return failure
 }
 
-// outcomeDetailMessage returns the first human message in a failure detail:
-// the declared message member of an object, or of the first array element
-// that carries one.
 func outcomeDetailMessage(detail interface{}, field string) string {
 	switch value := detail.(type) {
 	case map[string]interface{}:
@@ -132,9 +117,6 @@ func outcomeCommandLabel(cmd *cobra.Command) string {
 	return path
 }
 
-// outcomeResultPayload decodes a discrete response for classification. The
-// buffered HTTP body is peeked, not consumed, so the renderer that runs next
-// sees the same bytes; typed results are re-encoded when no body remains.
 func outcomeResultPayload(res interface{}) (interface{}, bool) {
 	switch extractResultContent(res).(type) {
 	case io.ReadCloser, []byte:
@@ -151,17 +133,8 @@ func outcomeResultPayload(res interface{}) (interface{}, bool) {
 			return nil, false
 		}
 	}
-	return outcomeDecode(raw)
-}
-
-func outcomeDecode(raw []byte) (interface{}, bool) {
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var parsed interface{}
-	if err := decoder.Decode(&parsed); err != nil {
-		return nil, false
-	}
-	return parsed, true
+	parsed, err := decodeWithNumbers(raw)
+	return parsed, err == nil
 }
 
 // outcomePointer resolves an RFC 6901 pointer against decoded JSON.
@@ -194,23 +167,21 @@ func outcomePointer(root interface{}, pointer string) (interface{}, bool) {
 	return current, true
 }
 
-// outcomeStreamFailure classifies one streamed event. The wire frame is
-// preferred so undeclared members stay visible to the pointers; a typed
-// event is re-encoded when the stream exposes no raw frame.
-func outcomeStreamFailure(cmd *cobra.Command, cfg *outcomeConfig, item interface{}, raw []byte) *outcomeError {
+func outcomeStreamFailure(cmd *cobra.Command, cfg *outcomeConfig, item interface{}, frame map[string]interface{}) *outcomeError {
 	if cfg == nil || cfg.StreamStatePointer == "" {
 		return nil
 	}
-	if len(raw) == 0 {
+	var payload interface{} = frame
+	if frame == nil {
 		data, err := marshalJSON(item)
 		if err != nil {
 			return nil
 		}
-		raw = data
-	}
-	payload, ok := outcomeDecode(raw)
-	if !ok {
-		return nil
+		decoded, err := decodeWithNumbers(data)
+		if err != nil {
+			return nil
+		}
+		payload = decoded
 	}
 	return outcomeFailure(cmd, cfg, payload, cfg.StreamStatePointer, cfg.StreamErrorPointer)
 }

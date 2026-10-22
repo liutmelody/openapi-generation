@@ -149,12 +149,13 @@ func StreamResult(cmd *cobra.Command, res interface{}, streamFieldName string) e
 			}
 		}
 
+		frame, hasFrame := decodeStreamFrame(raw)
 		if outcomeCfg != nil && streamFailure == nil {
-			streamFailure = outcomeStreamFailure(cmd, outcomeCfg, item, raw)
+			streamFailure = outcomeStreamFailure(cmd, outcomeCfg, item, frame)
 		}
 
-		if raw != nil {
-			item = wireStreamItem(item, raw, format == "table" && jqExpr == "")
+		if hasFrame {
+			item = wireStreamFrame(item, frame, format == "table" && jqExpr == "")
 		}
 
 		if projector != nil {
@@ -175,8 +176,6 @@ func StreamResult(cmd *cobra.Command, res interface{}, streamFieldName string) e
 			return renderAfterFinish(errResults[0].Interface().(error))
 		}
 	}
-	// A declared failure state is reported after every event has been
-	// rendered, so the stream's own output and metadata stay intact.
 	if streamFailure != nil {
 		return renderAfterFinish(streamFailure)
 	}
@@ -202,18 +201,33 @@ func (w wireEvent) MarshalJSON() ([]byte, error) {
 
 // Re-encoding the decoded model drops undeclared fields and zero-fills absent ones.
 func wireStreamItem(item interface{}, raw []byte, table bool) interface{} {
+	frame, ok := decodeStreamFrame(raw)
+	if !ok {
+		return item
+	}
+	return wireStreamFrame(item, frame, table)
+}
+
+func decodeStreamFrame(raw []byte) (map[string]interface{}, bool) {
+	if len(raw) == 0 {
+		return nil, false
+	}
+	frame, err := decodeWithNumbers(raw)
+	wire, isObject := frame.(map[string]interface{})
+	if err != nil || !isObject {
+		return nil, false
+	}
+	return wire, true
+}
+
+func wireStreamFrame(item interface{}, wire map[string]interface{}, table bool) interface{} {
 	keys, ok := envelopeKeys(reflect.ValueOf(item))
-	if len(raw) == 0 || !ok {
+	if !ok {
 		return item
 	}
 	typed, err := normalizeForOutput(item)
 	// Tables lay out the model's fields and sections, which the wire map loses.
 	if err == nil && table {
-		return item
-	}
-	frame, err := decodeWithNumbers(raw)
-	wire, isObject := frame.(map[string]interface{})
-	if err != nil || !isObject {
 		return item
 	}
 	for name := range wire {

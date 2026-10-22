@@ -381,10 +381,6 @@ func LocalResult(cmd *cobra.Command, res interface{}) error {
 	return result(cmd, res, true)
 }
 
-// result renders the response and then reports a declared failure state.
-// The payload is rendered first so machine consumers still receive it; the
-// artifact path is skipped on failure because the response carries no media
-// to write.
 func result(cmd *cobra.Command, res interface{}, allowArtifact bool) error {
 	failure := outcomeResultFailure(cmd, res)
 	{{- if hasCliArtifacts}}

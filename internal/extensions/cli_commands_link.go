@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -1035,15 +1036,9 @@ func (d *cliManifestDecoder) linkAsync(cmdKey string, cmd *CLICommand, createInf
 	return pollInfo, nil
 }
 
-// linkOutcome validates output.outcome against the operation's own
-// responses. The JSON state pointer must select a closed string enum in
-// every application/json 2xx response and the states table must classify
-// exactly that enum, so an API state can never reach the runtime
-// unclassified. The stream state pointer is checked like a stream
-// projection: it must address a string in at least one event shape, and the
-// stream error pointer an object or an array in at least one event shape,
-// since the failure detail may live on only the terminal event. The JSON
-// error pointer must address an object or an array in every response variant.
+// linkOutcome checks the state pointers against the operation's responses:
+// the JSON state must be a closed string enum that the states table covers
+// exactly, and the stream pointers must resolve in at least one event shape.
 func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcome, opID string, opInfo *cliOperationInfo) error {
 	if outcome.StatePointer != "" {
 		if len(opInfo.jsonResponses) == 0 {
@@ -1060,6 +1055,9 @@ func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcom
 					return fmt.Errorf("%s output.outcome.statePointer %s in operation %q response %s is an open enum; every possible state must be classifiable at generation time", owner, outcome.StateFrom, opID, response.code)
 				}
 				for _, value := range facts.enum {
+					if value == nil {
+						continue
+					}
 					state, ok := value.(string)
 					if !ok {
 						return fmt.Errorf("%s output.outcome.statePointer %s in operation %q response %s has a non-string enum member %v", owner, outcome.StateFrom, opID, response.code, value)
@@ -1104,57 +1102,17 @@ func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcom
 
 const cliStreamDetailField = "output.outcome.streamErrorPointer"
 
-// linkOutcomeErrorPointer walks a failure-detail path through every
-// traversable variant of a JSON response schema and requires the leaf to be
-// an object or an array in each of them.
 func (d *cliManifestDecoder) linkOutcomeErrorPointer(path string, responseSchema any) error {
-	segments, err := cliParseSingularPath(path)
+	views, err := d.walkResponsePath(path, responseSchema)
 	if err != nil {
 		return err
 	}
-	views, err := d.artifactExpand(responseSchema, 0)
+	facts, err := d.responseLeafFacts(views)
 	if err != nil {
 		return err
 	}
-	if len(views) == 0 {
-		return stderrors.New("response schema has no traversable object variant")
-	}
-	for i, segment := range segments {
-		var next []*cliResolvedSchema
-		for _, view := range views {
-			var child any
-			if segment.IsIndex {
-				if view.raw == nil || view.raw["type"] != "array" {
-					return fmt.Errorf("segment %d ([%d]) does not address an array in every response variant", i+1, segment.Index)
-				}
-				child = view.raw["items"]
-				if child == nil {
-					return fmt.Errorf("segment %d ([%d]) addresses an array without an items schema", i+1, segment.Index)
-				}
-			} else {
-				var ok bool
-				child, ok = view.properties[segment.Name]
-				if !ok {
-					return fmt.Errorf("segment %d (.%s) does not resolve in every response variant%s", i+1, segment.Name, cliDidYouMean(segment.Name, view.propOrder))
-				}
-			}
-			expanded, err := d.artifactExpand(child, 0)
-			if err != nil {
-				return fmt.Errorf("segment %d: %w", i+1, err)
-			}
-			if len(expanded) == 0 {
-				return fmt.Errorf("segment %d does not resolve to a schema in every response variant", i+1)
-			}
-			next = append(next, expanded...)
-		}
-		views = next
-	}
-	for _, view := range views {
-		facts, err := d.propertyFacts(view.raw, nil)
-		if err != nil {
-			return err
-		}
-		if len(facts.kinds) != 1 || (facts.kinds[0] != "object" && facts.kinds[0] != "array") {
+	for _, propertyFacts := range facts {
+		if len(propertyFacts.kinds) != 1 || (propertyFacts.kinds[0] != "object" && propertyFacts.kinds[0] != "array") {
 			return stderrors.New("selected failure detail must be an object or an array in every response variant")
 		}
 	}
@@ -1252,6 +1210,28 @@ func cliAsyncErrorViewIsObject(view *cliResolvedSchema) bool {
 // a handle or state missing from even one response-union arm would otherwise
 // become a data-dependent runtime failure.
 func (d *cliManifestDecoder) linkAsyncResponsePointer(path string, responseSchema any, requireEnum bool) ([]*cliPropertyFacts, error) {
+	views, err := d.walkResponsePath(path, responseSchema)
+	if err != nil {
+		return nil, err
+	}
+	facts, err := d.responseLeafFacts(views)
+	if err != nil {
+		return nil, err
+	}
+	for _, propertyFacts := range facts {
+		if len(propertyFacts.kinds) != 1 || propertyFacts.kinds[0] != "string" {
+			return nil, stderrors.New("selected value must be a string in every response variant")
+		}
+		if requireEnum && len(propertyFacts.enum) == 0 {
+			return nil, stderrors.New("selected state must declare a non-empty enum in every response variant")
+		}
+	}
+	return facts, nil
+}
+
+// walkResponsePath follows a singular path through every traversable variant
+// of a response schema and returns the leaf views.
+func (d *cliManifestDecoder) walkResponsePath(path string, responseSchema any) ([]*cliResolvedSchema, error) {
 	segments, err := cliParseSingularPath(path)
 	if err != nil {
 		return nil, err
@@ -1293,22 +1273,58 @@ func (d *cliManifestDecoder) linkAsyncResponsePointer(path string, responseSchem
 		}
 		views = next
 	}
+	return views, nil
+}
 
+// responseLeafFacts reports the facts of each non-null leaf view; a null
+// union arm or a "null" entry in a type list is accepted as absence.
+func (d *cliManifestDecoder) responseLeafFacts(views []*cliResolvedSchema) ([]*cliPropertyFacts, error) {
 	facts := make([]*cliPropertyFacts, 0, len(views))
 	for _, view := range views {
-		propertyFacts, err := d.propertyFacts(view.raw, nil)
+		raw := cliWithoutNullType(view.raw)
+		if raw == nil {
+			continue
+		}
+		propertyFacts, err := d.propertyFacts(raw, nil)
 		if err != nil {
 			return nil, err
 		}
-		if len(propertyFacts.kinds) != 1 || propertyFacts.kinds[0] != "string" {
-			return nil, stderrors.New("selected value must be a string in every response variant")
-		}
-		if requireEnum && len(propertyFacts.enum) == 0 {
-			return nil, stderrors.New("selected state must declare a non-empty enum in every response variant")
-		}
 		facts = append(facts, propertyFacts)
 	}
+	if len(facts) == 0 {
+		return nil, stderrors.New("selected value is always null")
+	}
 	return facts, nil
+}
+
+func cliWithoutNullType(schema map[string]any) map[string]any {
+	switch typ := schema["type"].(type) {
+	case string:
+		if typ == "null" {
+			return nil
+		}
+	case []any:
+		kept := make([]any, 0, len(typ))
+		for _, t := range typ {
+			if t != "null" {
+				kept = append(kept, t)
+			}
+		}
+		if len(kept) == len(typ) {
+			return schema
+		}
+		if len(kept) == 0 {
+			return nil
+		}
+		stripped := maps.Clone(schema)
+		if len(kept) == 1 {
+			stripped["type"] = kept[0]
+		} else {
+			stripped["type"] = kept
+		}
+		return stripped
+	}
+	return schema
 }
 
 func (d *cliManifestDecoder) requireStringSchema(schema any) error {
@@ -2169,10 +2185,7 @@ const (
 	leafDetail                   // object or array (failure detail)
 )
 
-// checkLeaf classifies the schema the full path resolved to. Strings and
-// nulls are what the raw writer emits; anything provably not a string is a
-// generation error naming the kind. A detail walker accepts objects and
-// arrays instead.
+// checkLeaf classifies the schema the full path resolved to.
 func (w *cliStreamPathWalker) checkLeaf(schemaMap map[string]any, seen []string) {
 	var (
 		class leafClass
@@ -2199,9 +2212,7 @@ func (w *cliStreamPathWalker) checkLeaf(schemaMap map[string]any, seen []string)
 	}
 }
 
-// classifyDetailLeaf inspects a failure-detail leaf: object and array schemas
-// (by type, properties, or items) are accepted, a null arm is neutral, and
-// any other const, enum, or typed scalar is a provable error naming the kind.
+// classifyDetailLeaf accepts object and array leaves; a null arm is neutral.
 func (w *cliStreamPathWalker) classifyDetailLeaf(schemaMap map[string]any, seen []string) (leafClass, string) {
 	if ref, ok := schemaMap["$ref"].(string); ok {
 		name := strings.TrimPrefix(ref, cliComponentRefPrefix)

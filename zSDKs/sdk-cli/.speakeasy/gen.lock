@@ -282,9 +282,9 @@ trackedFiles:
   internal/output/jq.go:
     last_write_checksum: sha1:9e59e92439a8c6269a76be1fa44e85cbbf2dee59
   internal/output/outcome.go:
-    last_write_checksum: sha1:d32102a27f51184e678048f43554d9611c3a9568
+    last_write_checksum: sha1:88879e376a238d4394f0664f4510a469b65fa4e4
   internal/output/output.go:
-    last_write_checksum: sha1:1d19a9a076b96d69a3264a156e6adc3ab0ed6f5c
+    last_write_checksum: sha1:e1df5123eef6ccdefb5212cdfa100fa5de0e4964
   internal/output/output_test.go:
     last_write_checksum: sha1:fc3d380351e2c9e5ffb2bc663e948ab37755e167
   internal/output/outputitems.go:
@@ -296,7 +296,7 @@ trackedFiles:
   internal/output/progress.go:
     last_write_checksum: sha1:f8b839f9394602fe9c30feb3d7155af6235663be
   internal/output/streaming.go:
-    last_write_checksum: sha1:3ef5094a3a1480c90f14101a682390ad821a0dd2
+    last_write_checksum: sha1:0540cff2240a82082f9437cc107d88c6de1289a3
   internal/output/streaming_test.go:
     last_write_checksum: sha1:9bb53612aa2a3e6d3da96f0c8f8e2ce4ba99b509
   internal/output/streamproject.go:

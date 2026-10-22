@@ -5491,6 +5491,15 @@ func TestCLICommands_OutcomeDecodeAndLink(t *testing.T) {
 	assert.Equal(t, "message", op.ErrorMessageField)
 }
 
+func TestCLICommands_OutcomeNullableLeaves(t *testing.T) {
+	spec := strings.Replace(cliCommandsTestSpec, "        status:\n          type: string\n          enum: [in_progress, completed, failed, requires_action]\n        steps:\n          type: array\n", "        status:\n          type: [string, \"null\"]\n          enum: [in_progress, completed, failed, requires_action, null]\n        steps:\n          type: [array, \"null\"]\n", 1)
+	require.NotEqual(t, cliCommandsTestSpec, spec)
+	manifest, _, err := decodeCLIWithSpec(t, spec, validOutcomeManifest)
+	require.NoError(t, err)
+	require.Len(t, manifest.Operations, 1)
+	assert.Equal(t, "/steps", manifest.Operations[0].Output.Outcome.ErrorPointer)
+}
+
 func TestCLICommands_OutcomeErrors(t *testing.T) {
 	base := validOutcomeManifest
 	for _, tc := range []struct {
