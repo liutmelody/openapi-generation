@@ -319,7 +319,9 @@ function sanitizeFieldName(name: string): string {
 
   if (
     fieldReservedKeywords.includes(name) ||
-    pythonReservedKeywords.includes(name)
+    pythonReservedKeywords.includes(name) ||
+    (context.Global.Config.ModelSerializationMethods &&
+      ["to_dict", "to_json"].includes(name))
   ) {
     name += "_";
   }

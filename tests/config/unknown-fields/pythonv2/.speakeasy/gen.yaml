@@ -10,6 +10,7 @@ python:
   templateVersion: v2
   packageManager: uv
   preserveUnknownFields: true
+  modelSerializationMethods: true
   forwardCompatibleUnionsByDefault: tagged-only
   inferUnionDiscriminators: true
   flattenRequests: false

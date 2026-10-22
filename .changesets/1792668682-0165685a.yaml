@@ -5,6 +5,6 @@ targets:
     - pythonv2
 type: feat
 bump: patch
-description: add opt-in preservation of unknown model fields
+description: add opt-in model serialization helpers and unknown-field preservation; fix open enum JSON serialization
 author: ThomasRooney
 date: "2026-10-22"

@@ -8,7 +8,7 @@
 {{- $hasNullableField := gt (len $nullableFields) 0 -}}
 {{- $hasAdditionalProperties := hasAdditionalPropertiesField $type -}}
 {{- $preserveUnknownFields := .Global.Config.PreserveUnknownFields -}}
-{{- if or $hasAdditionalProperties $preserveUnknownFields}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
+{{- if $hasAdditionalProperties}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
 {{- $fields := (sortFields $type.Fields) -}}
 {{- $className := sanitizeClassName $type.Name }}
 {{- $startsWithTest := hasPrefix "Test" $className }}
@@ -18,15 +18,13 @@
 {{- templateDeprecated $type.Comments }}
 class {{$className}}(BaseModel):
 {{- $comments}}
-    {{- if and (not $startsWithTest) (not $hasAdditionalProperties) (not $preserveUnknownFields) (le (len $fields) 0) (not $pagination) (not $comments)}}
+    {{- if and (not $startsWithTest) (not $hasAdditionalProperties) (le (len $fields) 0) (not $pagination) (not $comments)}}
     pass{{end -}}
     {{- if $startsWithTest}}
     __test__ = False
     {{- end}}
-    {{- if or $hasAdditionalProperties $preserveUnknownFields}}
-    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
-    {{- end}}
     {{- if $hasAdditionalProperties}}
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
     __pydantic_extra__:  {{sanitizeAdditionalPropertiesField (getAdditionalPropertiesField $type) $usageLocation $local}}
     {{- end}}
     
@@ -40,7 +38,7 @@ class {{$className}}(BaseModel):
     {{- else}}
     next: Callable[[], Optional[{{ sanitizeClass $type $usageLocation true }}]]
     {{- end }}
-    {{- end }}{{if or $comments $startsWithTest $hasAdditionalProperties $preserveUnknownFields $pagination}}{{/* Add a newline before the fields if necessary */}}
+    {{- end }}{{if or $comments $startsWithTest $hasAdditionalProperties $pagination}}{{/* Add a newline before the fields if necessary */}}
     {{end}}
     {{- range $fields}}
     {{-   if not .IsAdditionalProperties}}

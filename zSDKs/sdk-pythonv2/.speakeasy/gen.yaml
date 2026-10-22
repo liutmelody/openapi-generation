@@ -88,6 +88,7 @@ python:
   methodArguments: infer-optional-args
   methodTimeoutArgument: timeout-ms
   methodTimeoutUnits: milliseconds
+  modelSerializationMethods: false
   moduleName: speakeasy.new_openapi
   multipartArrayFormat: standard
   optionalDependencies:

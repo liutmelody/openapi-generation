@@ -12,19 +12,13 @@
 {{- if eq $type.Type "error"}}{{$subTypeName = print $className "Data"}}{{else}}{{$subTypeName = print $className "Union"}}{{end -}}
 {{- if eq $type.Type "error"}}
 {{- addImport "types" "BaseModel" true -}}
-{{- if .Global.Config.PreserveUnknownFields}}{{addImport "pydantic" "ConfigDict"}}{{end}}
 class {{$className}}Data(BaseModel):
-    {{- if .Global.Config.PreserveUnknownFields}}
-    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
-    {{- end}}
     {{- range $fields}}
     {{-   $fieldName := sanitizeFieldName .Name}}
     {{    if and .Const useUpperCaseConsts}}{{upper $fieldName}}{{else}}{{$fieldName}}{{end}}: {{sanitizeFieldTypeAndAnnotations . $usageLocation $local}}{{templateDefaultValue . $usageLocation $local}}
     {{-   templateComments .Comments 1}}
     {{- else}}
-    {{- if not $.Global.Config.PreserveUnknownFields}}
     pass
-    {{- end}}
     {{- end}}
 {{- else}}
 {{- if and $type.Discriminator $type.IsUnionOpen }}

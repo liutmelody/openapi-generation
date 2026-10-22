@@ -1552,7 +1552,7 @@ var fileMode = map[string]fs.FileMode{
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/types":                                                         0o20000000755,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/types/__init__.py":                                             0o644,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/types/base64fileinput.py":                                      0o644,
-	"templates/pythonv2/auxiliary/{{getSourcePath}}/types/basemodel.py":                                            0o644,
+	"templates/pythonv2/auxiliary/{{getSourcePath}}/types/basemodel.py.stmpl":                                      0o644,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/utils":                                                         0o20000000755,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/utils/__init__.py.stmpl":                                       0o644,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/utils/annotations.py":                                          0o644,

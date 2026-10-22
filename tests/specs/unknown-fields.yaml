@@ -114,6 +114,21 @@ components:
         closed:
           $ref: '#/components/schemas/ClosedFields'
         arbitrary: {}
+        futureKind:
+          type: string
+          enum: [first, second]
+          x-speakeasy-unknown-values: allow
+        futureCode:
+          type: integer
+          enum: [1, 2]
+          x-speakeasy-unknown-values: allow
+        methodNames:
+          type: object
+          properties:
+            toDict:
+              type: string
+            toJson:
+              type: string
     FieldNode:
       type: object
       required: [displayName]

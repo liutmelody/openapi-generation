@@ -7,9 +7,49 @@ from typing_extensions import TypeAliasType, TypeAlias
 
 class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(
-        populate_by_name=True, arbitrary_types_allowed=True, protected_namespaces=()
+        populate_by_name=True, arbitrary_types_allowed=True, protected_namespaces=(){{if .Global.Config.PreserveUnknownFields}}, extra="allow"{{end}}
     )
 
+{{if .Global.Config.ModelSerializationMethods}}
+    def to_dict(
+        self,
+        *,
+        mode: Literal["json", "python"] = "python",
+        use_api_names: bool = True,
+        exclude_unset: bool = True,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        warnings: bool = True,
+    ) -> dict[str, Any]:
+        return self.model_dump(
+            mode=mode,
+            by_alias=use_api_names,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            warnings=warnings,
+        )
+
+    def to_json(
+        self,
+        *,
+        indent: Optional[int] = 2,
+        use_api_names: bool = True,
+        exclude_unset: bool = True,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        warnings: bool = True,
+    ) -> str:
+        return self.model_dump_json(
+            indent=indent,
+            by_alias=use_api_names,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            warnings=warnings,
+        )
+
+{{end}}
 
 class Unset(BaseModel):
     @model_serializer(mode="plain")
@@ -54,6 +94,7 @@ class UnrecognizedStr(str):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
+            serialization=core_schema.plain_serializer_function_ser_schema(str),
         )
 
 
@@ -72,4 +113,5 @@ class UnrecognizedInt(int):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
+            serialization=core_schema.plain_serializer_function_ser_schema(int),
         )
