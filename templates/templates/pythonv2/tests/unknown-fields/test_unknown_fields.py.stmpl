@@ -175,3 +175,14 @@ def test_model_serialization_methods(options):
     assert model.to_dict(mode="json", **options) == model.model_dump(mode="json", **dump_options)
     assert model.to_json(indent=None, **options) == model.model_dump_json(indent=None, **dump_options)
     assert json.loads(model.to_json(**options)) == model.to_dict(mode="json", **options)
+
+
+def test_model_serialization_methods_keep_consts():
+    model = models.FieldEnvelopeInput(label="root", choice=models.TextChoice(text="t"), constant=models.ConstFields())
+    expected = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed"}}
+    assert json.loads(utils.marshal_json(model, models.FieldEnvelopeInput)) == expected
+    if not MODEL_SERIALIZATION_METHODS:
+        return
+    assert model.to_dict() == expected
+    assert json.loads(model.to_json()) == expected
+    assert models.FieldEnvelopeInput.model_validate(model.to_dict()).to_dict() == expected

@@ -57,6 +57,14 @@ class {{$className}}(BaseModel):
         self.__pydantic_extra__ = value # pyright: ignore[reportIncompatibleVariableOverride]
     {{end}}
 
+    {{- $constFieldAttributes := templateConstFieldAttributeList $type}}
+    {{- if and .Global.Config.ModelSerializationMethods $constFieldAttributes}}
+    {{-   addImport "typing" "Any"}}
+
+    def model_post_init(self, context: Any, /) -> None:
+        self.__pydantic_fields_set__.update([{{$constFieldAttributes}}])
+    {{- end}}
+
     {{- if hasOpenEnumField $type}}
     {{-   range openEnums $type}}
     {{-     if and (not .Const) (not (eq (getEnumFormat .Type) "union"))}}

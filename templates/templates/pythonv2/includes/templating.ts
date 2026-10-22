@@ -1850,6 +1850,24 @@ function templateOptionalFieldList(typeDef: TypeDef): string {
 }
 registerTemplateFunc("templateOptionalFieldList", templateOptionalFieldList);
 
+function templateConstFieldAttributeList(typeDef: TypeDef): string {
+  return typeDef.Fields.filter(
+    (f) =>
+      f.Const &&
+      !(f.Optional && f.Const.Value === null) &&
+      !f.IsAdditionalProperties,
+  )
+    .map((f) => {
+      const fieldName = sanitizeFieldName(f.Name);
+      return `"${useUpperCaseConsts() ? fieldName.toUpperCase() : fieldName}"`;
+    })
+    .join(", ");
+}
+registerTemplateFunc(
+  "templateConstFieldAttributeList",
+  templateConstFieldAttributeList,
+);
+
 function templateNullableFieldList(typeDef: TypeDef): string {
   return templateFieldList(typeDef, (f) => f.Nullable);
 }

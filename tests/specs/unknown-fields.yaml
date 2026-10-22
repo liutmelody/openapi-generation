@@ -113,6 +113,8 @@ components:
           $ref: '#/components/schemas/TypedFields'
         closed:
           $ref: '#/components/schemas/ClosedFields'
+        constant:
+          $ref: '#/components/schemas/ConstFields'
         arbitrary: {}
         futureKind:
           type: string
@@ -212,3 +214,13 @@ components:
     EmptyFields:
       type: object
       additionalProperties: false
+    ConstFields:
+      type: object
+      description: A required const alongside an optional field, so the const is populated by its default rather than by the caller.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          const: fixed
+        label:
+          type: string
