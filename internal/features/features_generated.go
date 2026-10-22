@@ -20,6 +20,10 @@ func (f Feature) String() string {
         return "callbacks"
     case FeatureConfigurableModuleName:
         return "configurableModuleName"
+    case FeatureConstArrays:
+        return "constArrays"
+    case FeatureConstObjects:
+        return "constObjects"
     case FeatureConstsAndDefaults:
         return "constsAndDefaults"
     case FeatureContentMediaTypeApplicationJSON:
@@ -198,6 +202,10 @@ func FeatureFromString(s string) Feature {
         return FeatureCallbacks
     case "configurableModuleName":
         return FeatureConfigurableModuleName
+    case "constArrays":
+        return FeatureConstArrays
+    case "constObjects":
+        return FeatureConstObjects
     case "constsAndDefaults":
         return FeatureConstsAndDefaults
     case "contentMediaTypeApplicationJSON":
@@ -367,6 +375,8 @@ var featureList = []Feature{
     FeatureCLICommands,
     FeatureCallbacks,
     FeatureConfigurableModuleName,
+    FeatureConstArrays,
+    FeatureConstObjects,
     FeatureConstsAndDefaults,
     FeatureContentMediaTypeApplicationJSON,
     FeatureCore,
@@ -456,6 +466,8 @@ var featureTiers = map[Feature]string{
     FeatureCLICommands: TierExperimental,
     FeatureCallbacks: TierCore,
     FeatureConfigurableModuleName: TierExperimental,
+    FeatureConstArrays: TierExperimental,
+    FeatureConstObjects: TierExperimental,
     FeatureConstsAndDefaults: TierBeta,
     FeatureContentMediaTypeApplicationJSON: TierExperimental,
     FeatureCore: TierCore,
@@ -571,6 +583,8 @@ var tierCoreFeatures = []Feature{
 var tierExperimentalFeatures = []Feature{
     FeatureCLICommands,
     FeatureConfigurableModuleName,
+    FeatureConstArrays,
+    FeatureConstObjects,
     FeatureContentMediaTypeApplicationJSON,
     FeatureCustomCodeRegions,
     FeatureCustomSecuritySchemes,

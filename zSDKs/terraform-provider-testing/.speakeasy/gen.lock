@@ -1,7 +1,7 @@
 lockVersion: 2.0.0
 id: review-sdk-test-id
 management:
-  docChecksum: fccaa1943b7d99936e3cf386d6aef8ac
+  docChecksum: b5e0ebee357a2bc4151a20fb322e722c
   docVersion: 0.0.1
   speakeasyVersion: internal
   generationVersion: internal
@@ -11,6 +11,8 @@ features:
   terraform:
     additionalDependencies: 0.1.0
     additionalProperties: 0.1.5
+    constArrays: 0.1.0
+    constObjects: 0.1.0
     constsAndDefaults: 0.3.2
     contentMediaTypeApplicationJSON: 0.1.1
     core: 3.50.2
@@ -51,6 +53,8 @@ trackedFiles:
     last_write_checksum: sha1:d84cd84fe166ec2d063ebb13a1845e744425693c
   examples/data-sources/testing_basic/data-source.tf:
     last_write_checksum: sha1:02bc159abd38449bcddcff2ed9eb7daf0b5cf5b4
+  examples/data-sources/testing_const_container/data-source.tf:
+    last_write_checksum: sha1:a45dc527c9b2b2404f3ce3797f8a0c3009de47dd
   examples/data-sources/testing_discriminated_union/data-source.tf:
     last_write_checksum: sha1:a21b63c90ce67e7b78e103fb57e8b55ba8ab4073
   examples/data-sources/testing_framework_type/data-source.tf:
@@ -275,6 +279,12 @@ trackedFiles:
     last_write_checksum: sha1:056e42f5b27cbc4a7e5b4a14c154ad4084026594
   examples/resources/testing_basic/resource.tf:
     last_write_checksum: sha1:60780e18fdeae0f7305502bd819092015c9e36b5
+  examples/resources/testing_const_container/import-by-string-id.tf:
+    last_write_checksum: sha1:094ecf7d894ef2ef5a9a4669ec05ef7c75bdceaa
+  examples/resources/testing_const_container/import.sh:
+    last_write_checksum: sha1:dc82e240078029b62b56bb695067d4c5e9cb4264
+  examples/resources/testing_const_container/resource.tf:
+    last_write_checksum: sha1:73c7ef301934066294a6aa619b7a7e4268581b95
   examples/resources/testing_discriminated_union/import-by-string-id.tf:
     last_write_checksum: sha1:61473f31485ac280bfa6943e7580d1bdd1e43413
   examples/resources/testing_discriminated_union/import.sh:
@@ -763,6 +773,14 @@ trackedFiles:
     last_write_checksum: sha1:550b1c9370c6f1e389f6145f4ab522df9c855e76
   internal/provider/basic_resource_sdk.go:
     last_write_checksum: sha1:c7327b7ec6b530ccb4ba940c83953e7b58b092a4
+  internal/provider/constcontainer_data_source.go:
+    last_write_checksum: sha1:3af6b6a8ec4bc9b019d8c83c297577266be2cb05
+  internal/provider/constcontainer_data_source_sdk.go:
+    last_write_checksum: sha1:a3d2f26a22da0b68da7f73523f16dec043d43c59
+  internal/provider/constcontainer_resource.go:
+    last_write_checksum: sha1:1c82779f3e4d07d9145f3c49abc8ecbf21b390af
+  internal/provider/constcontainer_resource_sdk.go:
+    last_write_checksum: sha1:e8e60887a5d623a9cdaef5a5d0f38884b3cc56a5
   internal/provider/discriminatedunion_data_source.go:
     last_write_checksum: sha1:dd97963488cb1994321bf5e3f813917c80a7d7b5
   internal/provider/discriminatedunion_data_source_sdk.go:
@@ -1066,7 +1084,7 @@ trackedFiles:
   internal/provider/patch_resource_sdk.go:
     last_write_checksum: sha1:9b583e2ac47191350373ce5a86408c118bd606b1
   internal/provider/provider.go:
-    last_write_checksum: sha1:a333255d3d9585c5700d3059b03e9b0dbf388774
+    last_write_checksum: sha1:8b1723df0915047021b8fd1b267f93dc19808e67
   internal/provider/reflect/diags.go:
     last_write_checksum: sha1:ace8bc53054bb1d8ee8689acf3e4323de75a6297
   internal/provider/reflect/doc.go:
@@ -2404,7 +2422,7 @@ trackedFiles:
   internal/sdk/internal/utils/jq.go:
     last_write_checksum: sha1:2e75ed7a7db1f91e97dac1ac4ca7801b2beb69b5
   internal/sdk/internal/utils/json.go:
-    last_write_checksum: sha1:bc34328ed29902c9f3bbeb04b5706a684e9bccc1
+    last_write_checksum: sha1:e4afb6c5125227acd6366acac653831f4d01cd0c
   internal/sdk/internal/utils/oauth2_credentials.go:
     last_write_checksum: sha1:f9218b6b3dbd11494cc353bf22eb37f0ca654a7d
   internal/sdk/internal/utils/oauth2_sessions.go:
@@ -2439,6 +2457,8 @@ trackedFiles:
     last_write_checksum: sha1:5b080b285280d5f8a012138b77c848c3118bddb0
   internal/sdk/models/operations/createbasic.go:
     last_write_checksum: sha1:0fdbac8d615b203c4f6054f9f44176e1c4ce564a
+  internal/sdk/models/operations/createconstcontainer.go:
+    last_write_checksum: sha1:892a2934f9b5cc0d5e40335502d20c3750702b95
   internal/sdk/models/operations/creatediscriminatedunion.go:
     last_write_checksum: sha1:68d916f8c709a15e2a564066dbc9317502aecf13
   internal/sdk/models/operations/creatediscriminatedunionarray.go:
@@ -2587,6 +2607,8 @@ trackedFiles:
     last_write_checksum: sha1:5b31482c4b581bc143b0403060004849179d8ffd
   internal/sdk/models/operations/deletebasic.go:
     last_write_checksum: sha1:2d991f9ce3b49547f88d3ed69a9a4e01ccc135a8
+  internal/sdk/models/operations/deleteconstcontainer.go:
+    last_write_checksum: sha1:443d6380ef9a4f9405c655078371ab2c13e633fa
   internal/sdk/models/operations/deletecustomplanmodifiers.go:
     last_write_checksum: sha1:8bcb2a4f56d57265de023e41d21617f5b88a7bc6
   internal/sdk/models/operations/deletediscriminatedunion.go:
@@ -2727,6 +2749,8 @@ trackedFiles:
     last_write_checksum: sha1:3bcc0082028b5f01a4d13f84072629b010550da0
   internal/sdk/models/operations/getbasic.go:
     last_write_checksum: sha1:73ada8ac1a2cec3987eb5b93f78f815934067b9d
+  internal/sdk/models/operations/getconstcontainer.go:
+    last_write_checksum: sha1:c4ac02b538bdf08901d302a4d4c07a6a18cb2536
   internal/sdk/models/operations/getcustomplanmodifiers.go:
     last_write_checksum: sha1:c6f5938cb6330969450186336a3085558bcd6d1c
   internal/sdk/models/operations/getdiscriminatedunion.go:
@@ -3073,6 +3097,10 @@ trackedFiles:
     last_write_checksum: sha1:34cb7c7fc9ab32b03e7c6a0875e7e6fec5805577
   internal/sdk/models/shared/basicsearch.go:
     last_write_checksum: sha1:ebc8943a31148f7623c5f8ff940dd81c1b52f23d
+  internal/sdk/models/shared/constcontainerrequest.go:
+    last_write_checksum: sha1:3cdb41c7b838e1c15dd0483ce7f685fdc6e7d480
+  internal/sdk/models/shared/constcontainerresponse.go:
+    last_write_checksum: sha1:d94a9a07729db01d47dd0ff890a363406d2169e5
   internal/sdk/models/shared/discriminatedobject.go:
     last_write_checksum: sha1:9bb5641a1bcb27ec59c1f16d82d8a251ec733286
   internal/sdk/models/shared/discriminatedunionarraycreaterequest.go:
@@ -3578,7 +3606,7 @@ trackedFiles:
   internal/sdk/retry/config.go:
     last_write_checksum: sha1:102d1953fbd7e9f312c4442c71ccca2eaaeaa27d
   internal/sdk/sdk.go:
-    last_write_checksum: sha1:a2997f8af41cead3493768284c9cc8c950f8f57c
+    last_write_checksum: sha1:f390c541016ad47b4744f87a396fc36e8590d9f4
   internal/sdk/types/bigint.go:
     last_write_checksum: sha1:49b004005d0461fb04b846eca062b070b0360b31
   internal/sdk/types/date.go:
@@ -6020,4 +6048,24 @@ examples:
       responses:
         "200":
           application/json: {}
+  create-const-container:
+    speakeasy-default-create-const-container:
+      requestBody:
+        application/json: {"name": "<value>", "empty_list": [], "fixed_list": ["read", "write"], "empty_map": {}, "fixed_map": {"max": 10}}
+      responses:
+        "200":
+          application/json: {"empty_list": [], "fixed_list": ["read", "write"], "empty_map": {}, "fixed_map": {"max": 10}}
+  get-const-container:
+    speakeasy-default-get-const-container:
+      parameters:
+        path:
+          id: "<id>"
+      responses:
+        "200":
+          application/json: {"empty_list": [], "fixed_list": ["read", "write"], "empty_map": {}, "fixed_map": {"max": 10}}
+  delete-const-container:
+    speakeasy-default-delete-const-container:
+      parameters:
+        path:
+          id: "<id>"
 examplesVersion: 1.0.2

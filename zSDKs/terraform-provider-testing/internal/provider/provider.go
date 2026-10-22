@@ -808,6 +808,7 @@ func (p *TestingProvider) Resources(ctx context.Context) []func() resource.Resou
 	return []func() resource.Resource{
 		NewAPICreateAndUpdateResource,
 		NewBasicResource,
+		NewConstContainerResource,
 		NewDiscriminatedUnionResource,
 		NewDiscriminatedUnionArrayResource,
 		NewFrameworkTypeResource,
@@ -888,6 +889,7 @@ func (p *TestingProvider) DataSources(ctx context.Context) []func() datasource.D
 	return []func() datasource.DataSource{
 		NewAPICreateAndUpdateDataSource,
 		NewBasicDataSource,
+		NewConstContainerDataSource,
 		NewDiscriminatedUnionDataSource,
 		NewFrameworkTypeDataSource,
 		NewImportDefaultedIDDataSource,

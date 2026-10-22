@@ -15,6 +15,8 @@ declare global {
     | "cliCommands"
     | "callbacks"
     | "configurableModuleName"
+    | "constArrays"
+    | "constObjects"
     | "constsAndDefaults"
     | "contentMediaTypeApplicationJSON"
     | "core"

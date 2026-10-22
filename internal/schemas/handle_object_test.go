@@ -246,6 +246,102 @@ func TestHandleObject(t *testing.T) {
 				Build(),
 		},
 		{
+			name: "MapWithConst",
+			schemasYAML: `TestSchema:
+  type: object
+  additionalProperties:
+    type: string
+  const:
+    key: value`,
+			schemaName: "TestSchema",
+			mockFeatures: func() *testutils.MockFeaturesConfig {
+				config := testutils.NewMockFeaturesConfig()
+				config.SupportedFeatures = map[features.Feature]bool{
+					features.FeatureConstObjects:      true,
+					features.FeatureConstsAndDefaults: true,
+				}
+				return config
+			},
+			expected: testutils.NewFieldDef("object",
+				testutils.NewTypeDef(ast.DataTypeMap).
+					WithLocation(&yaml.Node{Line: 9, Column: 7}).
+					WithItemType(
+						testutils.NewTypeDef(ast.DataTypeString).
+							WithLocation(&yaml.Node{Line: 11, Column: 9}).
+							WithValidations(&ast.Validations{}).
+							Build(),
+					).
+					Build()).
+				WithConst(&ast.AnyValue{Value: map[string]interface{}{"key": "value"}}).
+				Build(),
+		},
+		{
+			name: "MapWithConstFeatureUnsupported",
+			schemasYAML: `TestSchema:
+  type: object
+  additionalProperties:
+    type: string
+  const: {}`,
+			schemaName: "TestSchema",
+			mockFeatures: func() *testutils.MockFeaturesConfig {
+				config := testutils.NewMockFeaturesConfig()
+				config.SupportedFeatures = map[features.Feature]bool{
+					features.FeatureConstsAndDefaults: true,
+				}
+				return config
+			},
+			expected: testutils.NewFieldDef("object",
+				testutils.NewTypeDef(ast.DataTypeMap).
+					WithLocation(&yaml.Node{Line: 9, Column: 7}).
+					WithItemType(
+						testutils.NewTypeDef(ast.DataTypeString).
+							WithLocation(&yaml.Node{Line: 11, Column: 9}).
+							WithValidations(&ast.Validations{}).
+							Build(),
+					).
+					Build()).
+				Build(),
+		},
+		{
+			name: "ObjectWithUnsupportedConst",
+			schemasYAML: `TestSchema:
+  type: object
+  properties:
+    name:
+      type: string
+  const:
+    name: "fixed"`,
+			schemaName: "TestSchema",
+			mockFeatures: func() *testutils.MockFeaturesConfig {
+				config := testutils.NewMockFeaturesConfig()
+				config.SupportedFeatures = map[features.Feature]bool{
+					features.FeatureConstObjects:      true,
+					features.FeatureConstsAndDefaults: true,
+				}
+				return config
+			},
+			expected: testutils.NewFieldDef("object",
+				testutils.NewTypeDef(ast.DataTypeClass).
+					WithLocation(&yaml.Node{Line: 9, Column: 7}).
+					WithScope(ast.ScopeShared).
+					WithRegistered().
+					WithOriginalNameFrozen().
+					WithContextStack(ast.ContextStack{}).
+					WithFields(
+						testutils.NewFieldDef("name",
+							testutils.NewTypeDef(ast.DataTypeString).
+								WithLocation(&yaml.Node{Line: 12, Column: 11}).
+								WithValidations(&ast.Validations{}).
+								Build()).
+							WithOriginalName("name").
+							WithJSONAnnotation("name").
+							WithOptional(true).
+							Build(),
+					).
+					Build()).
+				Build(),
+		},
+		{
 			name: "ObjectWithExample",
 			schemasYAML: `TestSchema:
   type: object

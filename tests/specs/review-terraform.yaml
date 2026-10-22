@@ -5697,6 +5697,54 @@ paths:
       responses:
         '200':
           description: OK
+  /v0/constcontainers:
+    post:
+      x-speakeasy-entity-operation: ConstContainer#create
+      description: |
+        Create a resource whose request schema declares const values on array
+        and map properties. Terraform must hide those properties from the
+        resource schema and send the const values in the request body.
+      operationId: create-const-container
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConstContainerRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstContainerResponse'
+  /v0/constcontainer/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      x-speakeasy-entity-operation: ConstContainer#read
+      description: Get a const container resource
+      operationId: get-const-container
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConstContainerResponse'
+        '404':
+          description: Not Found
+    delete:
+      x-speakeasy-entity-operation: ConstContainer#delete
+      description: Delete a const container resource
+      operationId: delete-const-container
+      responses:
+        '200':
+          description: OK
 components:
   parameters:
     GlobalBoolean:
@@ -5917,6 +5965,80 @@ components:
         type: string
         default: DEFAULT
   schemas:
+    ConstContainerRequest:
+      type: object
+      additionalProperties: false
+      x-speakeasy-entity: ConstContainer
+      properties:
+        name:
+          type: string
+        empty_list:
+          type: array
+          items:
+            type: string
+          const: []
+        fixed_list:
+          type: array
+          items:
+            type: string
+            enum:
+              - read
+              - write
+              - admin
+          const:
+            - read
+            - write
+        empty_map:
+          type: object
+          additionalProperties:
+            type: string
+          const: {}
+        fixed_map:
+          type: object
+          additionalProperties:
+            type: integer
+          const:
+            max: 10
+      required:
+        - name
+        - empty_list
+        - empty_map
+    ConstContainerResponse:
+      type: object
+      additionalProperties: false
+      x-speakeasy-entity: ConstContainer
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        empty_list:
+          type: array
+          items:
+            type: string
+          const: []
+        fixed_list:
+          type: array
+          items:
+            type: string
+            enum:
+              - read
+              - write
+              - admin
+          const:
+            - read
+            - write
+        empty_map:
+          type: object
+          additionalProperties:
+            type: string
+          const: {}
+        fixed_map:
+          type: object
+          additionalProperties:
+            type: integer
+          const:
+            max: 10
     DiscriminatedUnionCreateRequest:
       x-speakeasy-entity: DiscriminatedUnion
       type: object

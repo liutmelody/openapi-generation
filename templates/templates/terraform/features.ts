@@ -26,6 +26,8 @@ const supportedFeatures = {
   constsAndDefaults: "0.3.2",
   defaultArrays: "0.2.0",
   defaultObjects: "0.1.2",
+  constArrays: "0.1.0",
+  constObjects: "0.1.0",
   additionalProperties: "0.1.5",
   disallowCircularRefs: "0.0.0",
   oauth2ClientCredentials: "0.3.5",

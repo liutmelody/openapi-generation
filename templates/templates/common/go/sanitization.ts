@@ -736,6 +736,10 @@ function templateConstValue(
         useTypesPackage: true,
         skipPointerWrapping,
       });
+    case "array":
+    case "set":
+    case "map":
+      return templateConstContainerValue(fieldDef, usageLocation);
     case "bytes":
     default:
       throw new Error(
@@ -745,6 +749,35 @@ function templateConstValue(
 }
 
 registerTemplateFunc("templateConstValue", templateConstValue);
+
+function templateConstContainerValue(
+  fieldDef: FieldDef,
+  usageLocation: string,
+): string {
+  const containerType = sanitizeType(fieldDef.Type, false, usageLocation);
+  const renderItem = (value: any): string =>
+    templateConstValue(
+      {
+        ...fieldDef,
+        Type: fieldDef.Type.ItemType,
+        Optional: false,
+        Nullable: false,
+        Const: { Value: value },
+      } as FieldDef,
+      usageLocation,
+      true,
+    );
+
+  if (fieldDef.Type.Type.toString() === "map") {
+    const entries = Object.entries(fieldDef.Const.Value ?? {}).map(
+      ([key, value]) => `${JSON.stringify(key)}: ${renderItem(value)}`,
+    );
+    return `${containerType}{${entries.join(", ")}}`;
+  }
+
+  const items = ((fieldDef.Const.Value ?? []) as any[]).map(renderItem);
+  return `${containerType}{${items.join(", ")}}`;
+}
 
 // @ts-ignore
 function templateArrayValue(value: any): string {

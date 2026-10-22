@@ -1,0 +1,10 @@
+id: 1792662097-2435dcc7
+features:
+    - constsAndDefaults
+targets:
+    - go
+type: fix
+bump: patch
+description: const values on array and map fields are emitted when marshaling and accepted when unmarshaling
+author: AshGodfrey
+date: "2026-10-22"

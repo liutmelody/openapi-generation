@@ -295,10 +295,6 @@ function templateFormAnnotation(
 function templateConstsAndDefaultsAnnotation(
   fieldDef: FieldDef,
 ): TemplatedAnnotation | null {
-  if (fieldDef.Type.IsContainer()) {
-    return null;
-  }
-
   function sanitizeValue(value: any): string {
     if (value === null) {
       return "null";
@@ -309,6 +305,17 @@ function templateConstsAndDefaultsAnnotation(
     }
 
     return value;
+  }
+
+  if (fieldDef.Type.IsContainer()) {
+    if (fieldDef.Const) {
+      return {
+        Tag: "const",
+        Value: sanitizeValue(JSON.stringify(fieldDef.Const.Value)),
+      };
+    }
+
+    return null;
   }
 
   if (fieldDef.Const) {

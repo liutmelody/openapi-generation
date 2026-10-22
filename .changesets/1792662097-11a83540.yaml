@@ -1,0 +1,10 @@
+id: 1792662097-11a83540
+features:
+    - constArrays
+targets:
+    - terraform
+type: feat
+bump: minor
+description: array properties with a const value are hidden from the resource schema and the const value is sent in request bodies
+author: AshGodfrey
+date: "2026-10-22"

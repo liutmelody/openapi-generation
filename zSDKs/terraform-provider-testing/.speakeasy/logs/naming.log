@@ -2238,6 +2238,15 @@ DEBUG	discriminated: Renamed to "XUnknownValuesResponse_closed_enum_string"
 	 registrationID: "scope:shared refType:Schemas refName:XUnknownValuesResponse originalName:closed_enum_string"
 DEBUG	
 
+--- Renaming 2 types with name "fixed_list" ---
+DEBUG	discriminated: Renamed to "ConstContainerRequest_fixed_list" 
+	 labels: "original_name:fixed_list scope:shared data_type:enum refName:ConstContainerRequest" 
+	 registrationID: "scope:shared refType:Schemas refName:ConstContainerRequest originalName:fixed_list"
+DEBUG	discriminated: Renamed to "ConstContainerResponse_fixed_list" 
+	 labels: "original_name:fixed_list scope:shared data_type:enum refName:ConstContainerResponse" 
+	 registrationID: "scope:shared refType:Schemas refName:ConstContainerResponse originalName:fixed_list"
+DEBUG	
+
 --- Renaming 3 types with name "tier" ---
 DEBUG	discriminated: Renamed to "create_import_defaulted_id_tier" 
 	 labels: "original_name:tier operation:create_import_defaulted_id data_type:enum parameter:pathParam" 
@@ -3813,6 +3822,15 @@ UpdateOasContentMediaTypeRequest (id: string, OASContentMediaTypeRequest: OASCon
 UpdateOasContentMediaTypeResponse (ContentType: string, StatusCode: int32, RawResponse: response ...)
 DeleteOasContentMediaTypeRequest (id: string)
 DeleteOasContentMediaTypeResponse (ContentType: string, StatusCode: int32, RawResponse: response)
+ConstContainerRequest (name: string, empty_list: array, fixed_list: array ...)
+  ConstContainerRequestFixedList (enum: read, write, admin)
+CreateConstContainerResponse (ContentType: string, StatusCode: int32, RawResponse: response ...)
+ ConstContainerResponse (id: string, name: string, empty_list: array ...)
+   ConstContainerResponseFixedList (enum: read, write, admin)
+GetConstContainerRequest (id: string)
+GetConstContainerResponse (ContentType: string, StatusCode: int32, RawResponse: response ...)
+DeleteConstContainerRequest (id: string)
+DeleteConstContainerResponse (ContentType: string, StatusCode: int32, RawResponse: response)
 Globals (globalBoolean: boolean, globalBooleanWithDefault: boolean, globalEnumFloat32: float32 ...)
 UpdateXGlobalsGlobals (globalBoolean: boolean, globalBooleanWithDefault: boolean, globalEnumFloat32: float32 ...)
 

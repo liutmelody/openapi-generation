@@ -149,6 +149,12 @@ const (
 	// FeatureDefaultObjects relates to the ability to handle default values for objects
 	// Tier: Experimental
 	FeatureDefaultObjects
+	// FeatureConstArrays relates to the ability to handle const values for arrays
+	// Tier: Experimental
+	FeatureConstArrays
+	// FeatureConstObjects relates to the ability to handle const values for objects
+	// Tier: Experimental
+	FeatureConstObjects
 	// FeatureAdditionalProperties relates to the ability to deserialize any unknown properties into a map available as an extra property on the generated models for both request bodies and parameters
 	// Tier: Gold
 	FeatureAdditionalProperties
