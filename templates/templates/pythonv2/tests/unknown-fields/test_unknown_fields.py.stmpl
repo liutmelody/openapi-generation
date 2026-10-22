@@ -8,7 +8,7 @@ import pydantic
 import pytest
 
 from openapi import SDK, errors, models, utils
-from openapi.types import BaseModel, Nullable, UnrecognizedInt, UnrecognizedStr
+from openapi.types import UNSET, BaseModel, Nullable, UnrecognizedInt, UnrecognizedStr
 from .common_helpers import HTTPBIN_URL, record_test
 
 
@@ -100,6 +100,11 @@ def test_base_model_unknown_field_policy():
 
     model = CustomModel(label="value", future=None)
     assert ("future" in model.model_dump()) is PRESERVE_UNKNOWN_FIELDS
+
+
+def test_unset_ignores_unknown_fields():
+    node = models.FieldNode.model_validate({"displayName": "child", "nullable": {"future": True}})
+    assert node.nullable == UNSET
 
 
 def test_response_model_can_be_sent_again():
