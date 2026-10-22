@@ -5,8 +5,8 @@ import httpx
 import pydantic
 import pytest
 
-from openapi import SDK, models
-from .common_helpers import HTTPBIN_URL
+from openapi import SDK, errors, models
+from .common_helpers import HTTPBIN_URL, record_test
 
 
 PRESERVE_UNKNOWN_FIELDS = {{if .Global.Config.PreserveUnknownFields}}True{{else}}False{{end}}
@@ -15,6 +15,7 @@ PRESERVE_UNKNOWN_FIELDS = {{if .Global.Config.PreserveUnknownFields}}True{{else}
 CASES = [
     ({"future": "value"}, {}),
     ({"future": False}, {}),
+    ({"empty": {"future": True}}, {"empty": {}}),
     ({"future": None}, {}),
     ({"plainChoice": {"text": "value", "future": True}}, {"plainChoice": {"text": "value"}}),
     ({"plainChoice": {"number": 3, "future": True}}, {"plainChoice": {"number": 3}}),
@@ -42,6 +43,7 @@ CASES = [
 @pytest.mark.parametrize("as_model", [False, True])
 @pytest.mark.parametrize("as_async", [False, True])
 def test_unknown_fields_echo(fields, default_fields, as_model, as_async):
+    record_test("unknown-fields-json-round-trip")
     payload = {"label": "root", **fields}
     request = models.FieldEnvelopeInput.model_validate(payload) if as_model else payload
     if as_async:
@@ -91,3 +93,16 @@ def test_response_model_can_be_sent_again():
     expected = payload if PRESERVE_UNKNOWN_FIELDS else {"label": "root", "child": {"displayName": "child"}}
     assert second.http_meta.response.json()["json"] == expected
     assert second.object.json_.model_dump(by_alias=True, exclude_none=True) == expected
+
+
+def test_error_response_unknown_fields():
+    payload = {"message": "invalid", "future": None, "detail": {"displayName": "child", "future": {"flag": True}}}
+    transport = httpx.MockTransport(lambda request: httpx.Response(400, json=payload))
+    with httpx.Client(transport=transport) as client:
+        with SDK(server_url=HTTPBIN_URL, client=client) as sdk:
+            with pytest.raises(errors.SDKError) as caught:
+                sdk.echo_unknown_fields(request={"label": "root"})
+    data = getattr(caught.value, "data")
+    dumped = data.model_dump(mode="json", by_alias=True)
+    assert ("future" in dumped) is PRESERVE_UNKNOWN_FIELDS
+    assert ("future" in dumped["detail"]) is PRESERVE_UNKNOWN_FIELDS

@@ -26,6 +26,18 @@ paths:
                 properties:
                   json:
                     $ref: '#/components/schemas/FieldEnvelope'
+        '400':
+          description: A structured error with additional server fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                  detail:
+                    $ref: '#/components/schemas/FieldNode'
 components:
   schemas:
     FieldEnvelope:
@@ -68,6 +80,8 @@ components:
                   type: string
         split:
           $ref: '#/components/schemas/SplitFields'
+        empty:
+          $ref: '#/components/schemas/EmptyFields'
         open:
           $ref: '#/components/schemas/OpenFields'
         typed:
@@ -155,3 +169,6 @@ components:
         secret:
           type: string
           writeOnly: true
+    EmptyFields:
+      type: object
+      additionalProperties: false

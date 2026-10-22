@@ -18,7 +18,7 @@
 {{- templateDeprecated $type.Comments }}
 class {{$className}}(BaseModel):
 {{- $comments}}
-    {{- if and (not $startsWithTest) (not $hasAdditionalProperties) (le (len $fields) 0) (not $pagination) (not $comments)}}
+    {{- if and (not $startsWithTest) (not $hasAdditionalProperties) (not $preserveUnknownFields) (le (len $fields) 0) (not $pagination) (not $comments)}}
     pass{{end -}}
     {{- if $startsWithTest}}
     __test__ = False
@@ -40,7 +40,7 @@ class {{$className}}(BaseModel):
     {{- else}}
     next: Callable[[], Optional[{{ sanitizeClass $type $usageLocation true }}]]
     {{- end }}
-    {{- end }}{{if or $comments $startsWithTest $hasAdditionalProperties $pagination}}{{/* Add a newline before the fields if necessary */}}
+    {{- end }}{{if or $comments $startsWithTest $hasAdditionalProperties $preserveUnknownFields $pagination}}{{/* Add a newline before the fields if necessary */}}
     {{end}}
     {{- range $fields}}
     {{-   if not .IsAdditionalProperties}}

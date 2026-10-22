@@ -663,6 +663,18 @@ jobs:
     uses: ./.github/workflows/test-pythonv2.yml
     with:
       test-group: "quaternary"
+  test-pythonv2-unknown-fields:
+    needs: [detect-targets]
+    if: needs.detect-targets.outputs.run-pythonv2 == 'true'
+    uses: ./.github/workflows/test-pythonv2.yml
+    with:
+      test-group: "unknown-fields"
+  test-pythonv2-unknown-fields-default:
+    needs: [detect-targets]
+    if: needs.detect-targets.outputs.run-pythonv2 == 'true'
+    uses: ./.github/workflows/test-pythonv2.yml
+    with:
+      test-group: "unknown-fields-default"
   test-pythonv2-client-credentials:
     needs: [detect-targets]
     if: needs.detect-targets.outputs.run-pythonv2 == 'true'
@@ -720,6 +732,8 @@ jobs:
       - test-pythonv2-secondary
       - test-pythonv2-tertiary
       - test-pythonv2-quaternary
+      - test-pythonv2-unknown-fields
+      - test-pythonv2-unknown-fields-default
       - test-pythonv2-client-credentials
       - test-pythonv2-basic-http
       - test-pythonv2-security-options

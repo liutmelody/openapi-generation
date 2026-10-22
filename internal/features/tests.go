@@ -781,6 +781,7 @@ const (
 	TestJsonlStreamTimeoutStillBoundsSlowStream
 	TestJsonlStreamWithTimeoutStreamsToCompletion
 	TestSharedEnumConstructorDefault
+	TestUnknownFieldsJsonRoundTrip
 )
 
 func GetAllTests() []Test {

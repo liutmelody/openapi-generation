@@ -596,6 +596,7 @@ function isTestSkipped(test: string): boolean {
     "event-stream-absent-required-union",
     "event-stream-equivalent-number-lexemes",
     "event-stream-null-and-undeclared-fields",
+    "unknown-fields-json-round-trip",
   ].includes(test);
 }
 

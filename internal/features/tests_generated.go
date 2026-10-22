@@ -1502,6 +1502,8 @@ func (t Test) String() string {
         return "unions-weakly-typed-one-of-post-basic"
     case TestUnionsWeaklyTypedOneOfPostDeep:
         return "unions-weakly-typed-one-of-post-deep"
+    case TestUnknownFieldsJsonRoundTrip:
+        return "unknown-fields-json-round-trip"
     case TestWebhooksConsume:
         return "webhooks-consume"
     case TestWebhooksConsumeBadData:
@@ -3022,6 +3024,8 @@ func TestFromString(s string) Test {
         return TestUnionsWeaklyTypedOneOfPostBasic
     case "unions-weakly-typed-one-of-post-deep":
         return TestUnionsWeaklyTypedOneOfPostDeep
+    case "unknown-fields-json-round-trip":
+        return TestUnknownFieldsJsonRoundTrip
     case "webhooks-consume":
         return TestWebhooksConsume
     case "webhooks-consume-bad-data":
@@ -3792,6 +3796,7 @@ var testList = []Test{
     TestUnionsUnionOfArrays,
     TestUnionsWeaklyTypedOneOfPostBasic,
     TestUnionsWeaklyTypedOneOfPostDeep,
+    TestUnknownFieldsJsonRoundTrip,
     TestWebhooksConsume,
     TestWebhooksConsumeBadData,
     TestWebhooksConsumeBadSignature,
