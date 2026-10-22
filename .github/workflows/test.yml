@@ -176,10 +176,30 @@ jobs:
     uses: ./.github/workflows/test-cli.yml
     with:
       test-group: "review"
+  test-cli-windows-installer:
+    needs: [detect-targets]
+    if: needs.detect-targets.outputs.run-cli == 'true'
+    name: Test CLI - windows installer (${{ matrix.shell }})
+    timeout-minutes: 15
+    runs-on: windows-latest
+    permissions:
+      contents: "read"
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test generated Windows installer
+        shell: ${{ matrix.shell }}
+        run: ./scripts/test-windows-installer.ps1
   test-cli:
     if: always() && needs.detect-targets.outputs.run-cli == 'true'
     needs:
       - detect-targets
+      - test-cli-windows-installer
       - test-cli-primary
       - test-cli-secondary
       - test-cli-tertiary
