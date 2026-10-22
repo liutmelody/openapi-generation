@@ -92,6 +92,8 @@ func outcomeFailure(cmd *cobra.Command, cfg *outcomeConfig, payload interface{},
 
 func outcomeDetailMessage(detail interface{}, field string) string {
 	switch value := detail.(type) {
+	case string:
+		return strings.TrimSpace(value)
 	case map[string]interface{}:
 		message, _ := value[field].(string)
 		return strings.TrimSpace(message)

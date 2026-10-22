@@ -593,7 +593,7 @@ func TestArtifact_DeclaredFailureStateWritesNothing(t *testing.T) {
 
 	err := runArtifact(t, h, server.URL, dir)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `ended in failure state "failed"`)
+	assert.Contains(t, err.Error(), "ended in failure state "+"\"failed\"")
 	assert.Empty(t, strings.TrimSpace(h.GetStdout()))
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)

@@ -1,11 +1,11 @@
 lockVersion: 2.0.0
 id: review-sdk-test-id
 management:
-  docChecksum: b76f0639e425901fecb124d1ffa0f638
+  docChecksum: 542812afcb058d0bf283cdd12d4e3e4a
   docVersion: 0.1.0
   speakeasyVersion: internal
   generationVersion: internal
-  releaseVersion: 0.0.0
+  releaseVersion: 0.0.1
   configChecksum: a089641082f8ba3e8b130e2827f8f303
 features:
   cli:
@@ -58,7 +58,7 @@ trackedFiles:
   cmd/gendocs/main_test.go:
     last_write_checksum: sha1:80e37af8940a8575a635b643431bb16f204209bb
   go.mod:
-    last_write_checksum: sha1:71fb9f8c524ef421d59da72d2f047ce104e75ad5
+    last_write_checksum: sha1:15ced474cbb1ec803f17960c0b73f10ea969c22a
   internal/cli/auth.go:
     last_write_checksum: sha1:5120764443e6565b7a63c06ad91d6323806cdfea
   internal/cli/binaryandstringupload.go:
@@ -282,7 +282,7 @@ trackedFiles:
   internal/output/jq.go:
     last_write_checksum: sha1:9e59e92439a8c6269a76be1fa44e85cbbf2dee59
   internal/output/outcome.go:
-    last_write_checksum: sha1:146a06bc0791269a357c3b168e56928b4b0357ed
+    last_write_checksum: sha1:5b7a3ad24255889f7a5cdc53478c237e7f358b85
   internal/output/output.go:
     last_write_checksum: sha1:e1df5123eef6ccdefb5212cdfa100fa5de0e4964
   internal/output/output_test.go:
@@ -468,7 +468,7 @@ trackedFiles:
   internal/sdk/models/operations/geterroronlyexample.go:
     last_write_checksum: sha1:55916aab358ca12649d5c0319eb05437f69c3538
   internal/sdk/models/operations/getfullyflattenedrequest.go:
-    last_write_checksum: sha1:07974d483523e4adcebc38a1cf9ac4da1f483b56
+    last_write_checksum: sha1:d50e9c5675ccacef5c02a28ec32fb46d2d098c8d
   internal/sdk/models/operations/getnamedprimitiveunion.go:
     last_write_checksum: sha1:978994805c30242b57757aee60120e6822cff1d2
   internal/sdk/models/operations/getnamespaceanimal.go:
@@ -668,7 +668,7 @@ trackedFiles:
   scripts/install.sh:
     last_write_checksum: sha1:ba255d220bc830375d4f2bc34a7ca01e0a0a8fe2
   tests/artifact_test.go:
-    last_write_checksum: sha1:7ef06db675926dc5e5b4c718978589fbd37336be
+    last_write_checksum: sha1:a1c98029eb87b7157b045ab5faf08893b8356d8d
   tests/async_test.go:
     last_write_checksum: sha1:7feb37653f240d6b9c625f4476365b018f738a03
   tests/cli_harness_test.go:

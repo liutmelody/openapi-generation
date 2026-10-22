@@ -1382,7 +1382,7 @@ function outcomeJSON(outcome: CLICommandOutcome | null | undefined): string {
   if (!outcome) {
     return "";
   }
-  const states: Record<string, string> = {};
+  const states: Record<string, string> = Object.create(null);
   for (const state of Object.keys(outcome.States || {}).sort()) {
     states[state] = outcome.States[state];
   }
@@ -2094,6 +2094,12 @@ function templateArtifactTestOutcomeFailureJSON(mime: string): string {
   );
   let value: any = outcome.state;
   for (const segment of outcome.pointer.split("/").slice(1).reverse()) {
+    if (/^(0|[1-9][0-9]*)$/.test(segment)) {
+      const list: any[] = [];
+      list[Number(segment)] = value;
+      value = list;
+      continue;
+    }
     value = { [segment.replace(/~1/g, "/").replace(/~0/g, "~")]: value };
   }
   return JSON.stringify(mergeIntentTestValue(body, value));
