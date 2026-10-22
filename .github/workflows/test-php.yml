@@ -35,12 +35,12 @@ jobs:
           extensions: mbstring, xml, curl
         env:
           update: true
+          COMPOSER_PROCESS_TIMEOUT: 300
 
       - name: Configure Composer
         run: |
           # Prefer source clones because codeload.github.com can reject dist zips.
           composer config --global preferred-install source
-          composer config --global process-timeout 300
 
       - name: Get Composer cache dir
         id: composer-cache

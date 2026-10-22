@@ -58,10 +58,17 @@ jobs:
         with:
           ruby-version: "3.2"
           bundler-cache: true
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2.37.2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, curl
+        env:
+          update: true
+          COMPOSER_PROCESS_TIMEOUT: 300
       - name: Configure Composer
         run: |
           composer config --global preferred-install auto
-          composer config --global process-timeout 300
       - name: Get Composer cache dir
         id: composer-cache
         run: echo "dir=$(composer config --global cache-dir)" >> "$GITHUB_OUTPUT"
