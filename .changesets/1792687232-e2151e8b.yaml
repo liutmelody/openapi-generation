@@ -1,0 +1,10 @@
+id: 1792687232-e2151e8b
+features:
+    - core
+targets:
+    - cli
+type: fix
+bump: patch
+description: keep a failed temporary directory cleanup in the Windows install script from being reported as an installation failure
+author: AshGodfrey
+date: "2026-10-22"

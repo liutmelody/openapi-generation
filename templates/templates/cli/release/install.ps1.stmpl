@@ -73,7 +73,8 @@ function Install-CLI {
     Write-ColorOutput "Downloading from: $downloadUrl" -Color Cyan
 
     # Create temporary directory
-    $tempDir = Join-Path $env:TEMP "{{sanitizeCliName}}-install-$(New-Guid)"
+    $tempRoot = (Get-Item -LiteralPath $env:TEMP).FullName
+    $tempDir = Join-Path $tempRoot "{{sanitizeCliName}}-install-$(New-Guid)"
     New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
     try {
@@ -129,8 +130,13 @@ function Install-CLI {
     }
     finally {
         # Cleanup
-        if (Test-Path $tempDir) {
-            Remove-Item $tempDir -Recurse -Force
+        try {
+            if (Test-Path -LiteralPath $tempDir) {
+                [System.IO.Directory]::Delete($tempDir, $true)
+            }
+        }
+        catch {
+            Write-ColorOutput "Warning: could not remove temporary directory ${tempDir}: $_" -Color Yellow
         }
     }
 }

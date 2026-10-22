@@ -662,7 +662,7 @@ trackedFiles:
   internal/usage/schema.go:
     last_write_checksum: sha1:92fdc3775fa21a6a8283bcaa762beac6faf40e57
   scripts/install.ps1:
-    last_write_checksum: sha1:9dcf40ea00ecb8ceda83d5056f57235b43cf658a
+    last_write_checksum: sha1:8e03835c51fac3f0c60c086e79e3fdc067a6bca6
   scripts/install.sh:
     last_write_checksum: sha1:ba255d220bc830375d4f2bc34a7ca01e0a0a8fe2
   tests/artifact_test.go:
