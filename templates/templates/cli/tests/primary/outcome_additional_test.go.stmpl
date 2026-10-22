@@ -1,0 +1,184 @@
+package tests
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"{{getGolangPackage}}/internal/cli"
+	"{{getGolangPackage}}/internal/clierrors"
+	"{{getGolangPackage}}/internal/config"
+)
+
+func outcomeInteractionJSON(status string, withErrors bool) string {
+	errorsJSON := ""
+	if withErrors {
+		errorsJSON = `,"errors":[{"code":"blocked","message":"content was blocked"}]`
+	}
+	return fmt.Sprintf(`{"id":"int_1","status":%q,"output_text":"Hello"%s}`, status, errorsJSON)
+}
+
+func newOutcomeServer(t *testing.T, status string, withErrors bool) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/outcome/interactions/"):
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, outcomeInteractionJSON(status, withErrors))
+		case r.URL.Path == "/outcome/stream":
+			w.Header().Set("Content-Type", "text/event-stream")
+			fmt.Fprint(w, "data: {\"event_type\":\"delta\",\"content\":\"Hello\"}\n\n")
+			if status != "" {
+				fmt.Fprintf(w, "data: {\"event_type\":\"completed\",\"interaction\":%s}\n\n", outcomeInteractionJSON(status, withErrors))
+			}
+			fmt.Fprint(w, "data: [DONE]\n\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func outcomeErrorEnvelope(t *testing.T, stderr string) map[string]interface{} {
+	t.Helper()
+	var envelope map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(stderr), &envelope), stderr)
+	return envelope
+}
+
+func runOutcome(t *testing.T, serverURL string, args ...string) (*CLITestHarness, error) {
+	t.Helper()
+	t.Cleanup(config.ResetKeyring)
+	h := NewCLITestHarness(t)
+	h.resetAndSetupEnv()
+	root, err := cli.NewRootCommand()
+	require.NoError(t, err)
+	root.SetOut(h.stdout)
+	root.SetErr(h.stderr)
+	root.SetIn(strings.NewReader(""))
+	fullArgs := append([]string{"--server-url", serverURL, "--color", "never", "--no-interactive", "--no-keyring"}, args...)
+	return h, cli.ExecuteRoot(context.Background(), root, fullArgs)
+}
+
+func TestOutcomeDiscreteResponse(t *testing.T) {
+	for _, command := range [][]string{
+		{"outcome", "outcome-get-interaction", "--id", "int_1"},
+		{"outcome-check", "--id", "int_1"},
+	} {
+		name := strings.Join(command[:1], " ")
+		for _, tc := range []struct {
+			status     string
+			withErrors bool
+			wantExit   int
+			wantStderr string
+		}{
+			{"completed", false, clierrors.ExitOK, ""},
+			{"incomplete", false, clierrors.ExitOK, ""},
+			{"in_progress", false, clierrors.ExitOK, ""},
+			{"failed", true, clierrors.ExitRuntime, `ended in failure state "failed": content was blocked`},
+			{"failed", false, clierrors.ExitRuntime, `ended in failure state "failed"`},
+			{"cancelled", false, clierrors.ExitRuntime, `ended in failure state "cancelled"`},
+		} {
+			t.Run(name+"/"+tc.status+"/json", func(t *testing.T) {
+				srv := newOutcomeServer(t, tc.status, tc.withErrors)
+				defer srv.Close()
+				h, err := runOutcome(t, srv.URL, append(command, "--output-format", "json")...)
+				assert.Equal(t, tc.wantExit, clierrors.ExitCode(err), h.GetStderr())
+				var payload map[string]interface{}
+				require.NoError(t, json.Unmarshal([]byte(h.GetStdout()), &payload), h.GetStdout())
+				assert.Equal(t, tc.status, payload["status"])
+				if tc.wantStderr == "" {
+					assert.Empty(t, h.GetStderr())
+					return
+				}
+				envelope := outcomeErrorEnvelope(t, h.GetStderr())
+				assert.Contains(t, envelope["message"], tc.wantStderr)
+				assert.Equal(t, "runtime_error", envelope["error_type"])
+				assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+			})
+		}
+		t.Run(name+"/pretty", func(t *testing.T) {
+			srv := newOutcomeServer(t, "failed", true)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, command...)
+			assert.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err))
+			assert.Contains(t, h.GetStdout(), "failed")
+			assert.Contains(t, h.GetStderr(), `ended in failure state "failed": content was blocked`)
+		})
+		t.Run(name+"/agent-mode", func(t *testing.T) {
+			srv := newOutcomeServer(t, "failed", true)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, append(command, "--agent-mode")...)
+			assert.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err))
+			var envelope map[string]interface{}
+			require.NoError(t, json.Unmarshal([]byte(h.GetStderr()), &envelope), h.GetStderr())
+			assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+			assert.Equal(t, "runtime_error", envelope["error_type"])
+			assert.Equal(t, float64(clierrors.ExitRuntime), envelope["exit_code"])
+			assert.Equal(t, "failed", envelope["state"])
+			detail, _ := envelope["error"].([]interface{})
+			require.Len(t, detail, 1)
+			assert.Equal(t, "content was blocked", detail[0].(map[string]interface{})["message"])
+		})
+	}
+}
+
+func TestOutcomeStreamedResponse(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		status     string
+		withErrors bool
+		wantExit   int
+		wantStderr string
+	}{
+		{"completed", "completed", false, clierrors.ExitOK, ""},
+		{"incomplete", "incomplete", false, clierrors.ExitOK, ""},
+		{"failed with detail", "failed", true, clierrors.ExitRuntime, `ended in failure state "failed": content was blocked`},
+		{"cancelled", "cancelled", false, clierrors.ExitRuntime, `ended in failure state "cancelled"`},
+		{"no completion event", "", false, clierrors.ExitOK, ""},
+	} {
+		t.Run(tc.name+"/projected", func(t *testing.T) {
+			srv := newOutcomeServer(t, tc.status, tc.withErrors)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, "outcome-say", "hello")
+			assert.Equal(t, tc.wantExit, clierrors.ExitCode(err), h.GetStderr())
+			assert.Equal(t, "Hello\n", h.GetStdout())
+			if tc.wantStderr == "" {
+				assert.Empty(t, h.GetStderr())
+				return
+			}
+			assert.Contains(t, h.GetStderr(), tc.wantStderr)
+		})
+		t.Run(tc.name+"/json", func(t *testing.T) {
+			srv := newOutcomeServer(t, tc.status, tc.withErrors)
+			defer srv.Close()
+			h, err := runOutcome(t, srv.URL, "outcome-say", "hello", "--output-format", "json")
+			assert.Equal(t, tc.wantExit, clierrors.ExitCode(err), h.GetStderr())
+			events := strings.Split(strings.TrimSpace(h.GetStdout()), "\n")
+			if tc.status == "" {
+				require.Len(t, events, 1)
+			} else {
+				require.Len(t, events, 2)
+				assert.Contains(t, events[1], `"status":`+fmt.Sprintf("%q", tc.status))
+			}
+			if tc.wantStderr != "" {
+				assert.Contains(t, outcomeErrorEnvelope(t, h.GetStderr())["message"], tc.wantStderr)
+			}
+		})
+	}
+	t.Run("agent-mode envelope", func(t *testing.T) {
+		srv := newOutcomeServer(t, "failed", true)
+		defer srv.Close()
+		h, err := runOutcome(t, srv.URL, "outcome-say", "hello", "--agent-mode")
+		assert.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err))
+		var envelope map[string]interface{}
+		require.NoError(t, json.Unmarshal([]byte(h.GetStderr()), &envelope), h.GetStderr())
+		assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+		assert.Equal(t, "failed", envelope["state"])
+	})
+}

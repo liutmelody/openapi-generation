@@ -136,6 +136,7 @@ interface IntentCmdCtx {
   AsyncMissingHandleTestJSON: string;
   AsyncFailureHint: string;
   StreamMetadataJSON: string;
+  OutcomeJSON: string; // terminal-state table carried via cobra annotation ("" = none)
   StreamSelect: string; // RFC 6901 pointer of output.stream.select ("" = none)
   StreamToggle: { Name: string; Key: string } | null;
   StreamKind: string; // "sse" | "jsonl" | "" — how the backing operation streams
@@ -201,6 +202,7 @@ interface CLIOperationFlagCtx {
 interface CLIOperationCtx {
   OperationID: string;
   StreamMetadataJSON: string;
+  OutcomeJSON: string;
   StreamSelect: string;
   Flags: CLIOperationFlagCtx[];
   BodyFlags: string[];
@@ -1335,6 +1337,7 @@ function collectIntentManifest(): IntentManifestCtx {
       AsyncFailureHint: cmd.Hints?.CLI_ASYNC_FAILED?.[0] || "",
       StreamSelect: cmd.Output?.Stream?.Pointer || "",
       StreamMetadataJSON: streamMetadataJSON(cmd.Output?.Stream?.Metadata),
+      OutcomeJSON: outcomeJSON(cmd.Output?.Outcome),
       StreamToggle:
         !dispatch && intentStreamKind(found.op).kind
           ? intentDefaultOnStreamToggle(flags, presetJSON)
@@ -1371,6 +1374,32 @@ function intentStreamKind(op: Operation): { kind: string; sentinel: string } {
     }
   }
   return { kind: "", sentinel: "" };
+}
+
+// outcomeJSON serializes output.outcome for the runtime. The states map
+// arrives from Go map iteration, so it is sorted for a deterministic file.
+function outcomeJSON(outcome: CLICommandOutcome | null | undefined): string {
+  if (!outcome) {
+    return "";
+  }
+  const states: Record<string, string> = {};
+  for (const state of Object.keys(outcome.States || {}).sort()) {
+    states[state] = outcome.States[state];
+  }
+  return JSON.stringify({
+    ...(outcome.StatePointer ? { statePointer: outcome.StatePointer } : {}),
+    ...(outcome.StreamStatePointer
+      ? { streamStatePointer: outcome.StreamStatePointer }
+      : {}),
+    states,
+    ...(outcome.ErrorPointer ? { errorPointer: outcome.ErrorPointer } : {}),
+    ...(outcome.StreamErrorPointer
+      ? { streamErrorPointer: outcome.StreamErrorPointer }
+      : {}),
+    ...(outcome.ErrorMessageField
+      ? { errorMessageField: outcome.ErrorMessageField }
+      : {}),
+  });
 }
 
 function streamMetadataJSON(
@@ -1583,6 +1612,7 @@ function getCLIOperationCtx(op: Operation): CLIOperationCtx | null {
     OperationID: declared.OperationID,
     StreamSelect: declared.Output?.Stream?.Pointer || "",
     StreamMetadataJSON: streamMetadataJSON(declared.Output?.Stream?.Metadata),
+    OutcomeJSON: outcomeJSON(declared.Output?.Outcome),
     Flags: flags,
     BodyFlags: bodyFlags,
     CanonicalBodyFlag: bodyFlags[bodyFlags.length - 1] || "",

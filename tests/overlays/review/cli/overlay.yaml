@@ -50,3 +50,24 @@ actions:
     update:
       resource_id:
         type: string
+  - target: $['x-speakeasy-cli-commands'].commands.render.output
+    update:
+      outcome:
+        statePointer: $.status
+        states:
+          in_progress: pending
+          completed: success
+          failed: failure
+          requires_action: handoff
+  - target: $['x-speakeasy-cli-commands'].commands.say.output
+    update:
+      outcome:
+        streamStatePointer: $.data.status
+        states:
+          streaming: pending
+          completed: success
+          failed: failure
+  - target: $.paths['/chat'].post.responses['200'].content['text/event-stream'].schema.properties.data.properties
+    update:
+      status:
+        type: string

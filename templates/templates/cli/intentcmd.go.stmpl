@@ -71,6 +71,9 @@ func InitIntent{{$c.FuncName}}(parent *cobra.Command) error {
 			{{- if $c.AsyncJSON}}
 			"speakeasy_async": "{{escapeGoString $c.AsyncJSON}}",
 			{{- end}}
+			{{- if $c.OutcomeJSON}}
+			"speakeasy_outcome": "{{escapeGoString $c.OutcomeJSON}}",
+			{{- end}}
 			{{- if $c.StreamSelect}}
 			"speakeasy_stream_select": "{{escapeGoString $c.StreamSelect}}",
 			{{- if $c.StreamMetadataJSON}}

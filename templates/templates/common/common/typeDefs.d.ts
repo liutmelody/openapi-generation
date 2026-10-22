@@ -2338,10 +2338,25 @@ declare global {
     Pointer: string;
   };
 
+  type CLICommandOutcome = {
+    StateFrom?: string;
+    StatePointer?: string;
+    StateSegments?: CLICommandAsyncPathSegment[] | null;
+    StreamStateFrom?: string;
+    StreamStatePointer?: string;
+    States: Record<string, string>;
+    ErrorFrom?: string;
+    ErrorPointer?: string;
+    StreamErrorFrom?: string;
+    StreamErrorPointer?: string;
+    ErrorMessageField?: string;
+  };
+
   type CLICommandOutput = {
     Projection: CLICommandProjection | null;
     Artifact?: CLICommandArtifact | null;
     Stream?: CLICommandStreamProjection | null;
+    Outcome?: CLICommandOutcome | null;
   };
 
   type CLICommandAsyncParameter = {

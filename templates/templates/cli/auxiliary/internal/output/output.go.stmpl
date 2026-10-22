@@ -381,7 +381,32 @@ func LocalResult(cmd *cobra.Command, res interface{}) error {
 	return result(cmd, res, true)
 }
 
+// result renders the response and then reports a declared failure state.
+// The payload is rendered first so machine consumers still receive it; the
+// artifact path is skipped on failure because the response carries no media
+// to write.
 func result(cmd *cobra.Command, res interface{}, allowArtifact bool) error {
+	var failure *outcomeError
+	if cfg := activeOutcome(cmd); cfg != nil && cfg.StatePointer != "" {
+		if payload, ok := outcomeResultPayload(res); ok {
+			failure = outcomeFailure(cmd, cfg, payload, cfg.StatePointer, cfg.ErrorPointer)
+		}
+	}
+	{{- if hasCliArtifacts}}
+	if failure != nil && allowArtifact && activeArtifact(cmd) != nil {
+		return Error(cmd, failure)
+	}
+	{{- end}}
+	if err := renderResult(cmd, res, allowArtifact); err != nil {
+		return err
+	}
+	if failure != nil {
+		return Error(cmd, failure)
+	}
+	return nil
+}
+
+func renderResult(cmd *cobra.Command, res interface{}, allowArtifact bool) error {
 	out := cmd.OutOrStdout()
 	colorFlag, _ := flagutil.GetStringFlag(cmd, "color")
 	colorize := ShouldColorize(colorFlag)

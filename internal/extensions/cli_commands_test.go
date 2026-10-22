@@ -2200,6 +2200,7 @@ commands:
       CLI_ASYNC_FAILED: async failed
       CLI_ASYNC_TIMEOUT: async timeout
       CLI_ASYNC_UNKNOWN_STATE: async unknown state
+      CLI_OUTCOME_FAILED: outcome failed
 `)
 	require.NoError(t, err)
 	require.Len(t, manifest.Commands, 1)
@@ -3443,7 +3444,7 @@ commands:
   say:
     op: StreamTask
     output: {}
-`, "output must declare artifact or stream")
+`, "output must declare artifact, stream, or outcome")
 
 	requireDecodeError(t, `
 version: 1
@@ -5422,4 +5423,97 @@ operations:
 	require.Len(t, warnings, 2)
 	assert.Contains(t, warnings[1], "output.stream.metadata.select")
 	assert.Contains(t, warnings[1], "could not be verified")
+}
+
+const validOutcomeManifest = `
+version: 1
+commands:
+  check:
+    op: GetTask
+    output:
+      outcome:
+        statePointer: $.status
+        states:
+          in_progress: pending
+          completed: success
+          failed: failure
+          requires_action: handoff
+  follow:
+    op: StreamTask
+    args:
+      prompt: {to: $.prompt, variadic: true}
+    output:
+      stream:
+        select: $.data.delta.text
+      outcome:
+        streamStatePointer: $.data.reason
+        states:
+          done: success
+          cancelled: failure
+operations:
+  GetTask:
+    output:
+      outcome:
+        statePointer: $.status
+        errorPointer: $.steps
+        states: {in_progress: pending, completed: success, failed: failure, requires_action: handoff}
+`
+
+func TestCLICommands_OutcomeDecodeAndLink(t *testing.T) {
+	manifest, _, err := decodeCLITest(t, validOutcomeManifest)
+	require.NoError(t, err)
+	require.Len(t, manifest.Commands, 2)
+
+	check := manifest.Commands[0].Output.Outcome
+	require.NotNil(t, check)
+	assert.Equal(t, "$.status", check.StateFrom)
+	assert.Equal(t, "/status", check.StatePointer)
+	assert.Empty(t, check.StreamStatePointer)
+	assert.Equal(t, map[string]string{"in_progress": "pending", "completed": "success", "failed": "failure", "requires_action": "handoff"}, check.States)
+	assert.Empty(t, check.ErrorPointer)
+	assert.Empty(t, check.ErrorMessageField)
+
+	follow := manifest.Commands[1].Output.Outcome
+	require.NotNil(t, follow)
+	assert.Empty(t, follow.StatePointer)
+	assert.Equal(t, "$.data.reason", follow.StreamStateFrom)
+	assert.Equal(t, "/data/reason", follow.StreamStatePointer)
+	assert.Equal(t, "/data/delta/text", manifest.Commands[1].Output.Stream.Pointer)
+
+	require.Len(t, manifest.Operations, 1)
+	op := manifest.Operations[0].Output.Outcome
+	require.NotNil(t, op)
+	assert.Equal(t, "/status", op.StatePointer)
+	assert.Equal(t, "/steps", op.ErrorPointer)
+	assert.Equal(t, "message", op.ErrorMessageField)
+}
+
+func TestCLICommands_OutcomeErrors(t *testing.T) {
+	base := validOutcomeManifest
+	for _, tc := range []struct {
+		name     string
+		manifest string
+		want     string
+	}{
+		{"no pointer", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress: pending", "        states:\n          in_progress: pending", 1), "requires statePointer (the state in the JSON response) or streamStatePointer"},
+		{"no failure class", strings.Replace(base, "          failed: failure\n          requires_action: handoff\n  follow", "          failed: success\n          requires_action: handoff\n  follow", 1), "must classify at least one state as failure"},
+		{"bad classification", strings.Replace(base, "failed: failure\n          requires_action", "failed: fatal\n          requires_action", 1), `output.outcome.states["failed"] has unsupported classification "fatal"`},
+		{"unknown key", strings.Replace(base, "        statePointer: $.status\n        states:", "        pointer: $.status\n        states:", 1), `output.outcome has unknown key "pointer"`},
+		{"not an enum member", strings.Replace(base, "          requires_action: handoff\n  follow", "          requires_action: handoff\n          exploded: failure\n  follow", 1), `classifies "exploded", which is not an enum member at $.status`},
+		{"unclassified enum member", strings.Replace(base, "          requires_action: handoff\n  follow", "  follow", 1), `does not classify enum member "requires_action"`},
+		{"state pointer not an enum", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        statePointer: $.id\n        states:\n          in_progress", 1), "selected state must declare a non-empty enum"},
+		{"stream pointer on discrete operation", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        streamStatePointer: $.status\n        states:\n          in_progress", 1), "has no streaming (text/event-stream or JSONL) success response"},
+		{"stream pointer misses every event", strings.Replace(base, "streamStatePointer: $.data.reason", "streamStatePointer: $.data.outcome", 1), "does not resolve in any event shape"},
+		{"error pointer must be object or array", strings.Replace(base, "errorPointer: $.steps", "errorPointer: $.id", 1), "selected failure detail must be an object or an array"},
+		{"error pointer without state pointer", strings.Replace(base, "        streamStatePointer: $.data.reason\n", "        streamStatePointer: $.data.reason\n        errorPointer: $.data.reason\n", 1), "output.outcome.errorPointer requires statePointer"},
+		{"message field without pointer", strings.Replace(base, "        statePointer: $.status\n        states:\n          in_progress", "        statePointer: $.status\n        errorMessageField: detail\n        states:\n          in_progress", 1), "errorMessageField requires errorPointer or streamErrorPointer"},
+		{"async conflict", strings.TrimSuffix(validAsyncManifest, "\n") + "\n    output:\n      outcome:\n        statePointer: $.status\n        states: {in_progress: pending, completed: success, failed: failure, requires_action: handoff}\n", "declares both async and output.outcome"},
+		{"planned command", "version: 1\ncommands:\n  later:\n    planned: later\n    output:\n      outcome:\n        statePointer: $.status\n        states: {failed: failure}\n", "planned command and cannot declare output"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := decodeCLITest(t, tc.manifest)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
 }

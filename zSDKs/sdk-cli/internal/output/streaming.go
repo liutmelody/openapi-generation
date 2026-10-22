@@ -73,6 +73,11 @@ func StreamResult(cmd *cobra.Command, res interface{}, streamFieldName string) e
 	}
 
 	projector := newStreamProjector(cmd)
+	outcomeCfg := activeOutcome(cmd)
+	if outcomeCfg != nil && outcomeCfg.StreamStatePointer == "" {
+		outcomeCfg = nil
+	}
+	var streamFailure *outcomeError
 
 	// Projected output already written must end with its terminating
 	// newline before any error is rendered. The primary error keeps the
@@ -144,6 +149,10 @@ func StreamResult(cmd *cobra.Command, res interface{}, streamFieldName string) e
 			}
 		}
 
+		if outcomeCfg != nil && streamFailure == nil {
+			streamFailure = outcomeStreamFailure(cmd, outcomeCfg, item, raw)
+		}
+
 		if raw != nil {
 			item = wireStreamItem(item, raw, format == "table" && jqExpr == "")
 		}
@@ -165,6 +174,11 @@ func StreamResult(cmd *cobra.Command, res interface{}, streamFieldName string) e
 		if len(errResults) > 0 && !errResults[0].IsNil() {
 			return renderAfterFinish(errResults[0].Interface().(error))
 		}
+	}
+	// A declared failure state is reported after every event has been
+	// rendered, so the stream's own output and metadata stay intact.
+	if streamFailure != nil {
+		return renderAfterFinish(streamFailure)
 	}
 
 	if projector != nil {

@@ -26,6 +26,7 @@ func InitIntentSay(parent *cobra.Command) error {
 			"speakeasy_operation":            "chat",
 			flagutil.AnnotationWholeBodyFlag: "request",
 			"speakeasy_strict_body_keys":     "true",
+			"speakeasy_outcome":              "{\"streamStatePointer\":\"/data/status\",\"states\":{\"completed\":\"success\",\"failed\":\"failure\",\"streaming\":\"pending\"\x7d\x7d",
 			"speakeasy_stream_select":        "/data/content",
 			"speakeasy_stream_metadata":      "[{\"label\":\"Resource ID\",\"pointers\":[\"/data/resource_id\"]}]",
 		},

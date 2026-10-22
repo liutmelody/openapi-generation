@@ -397,6 +397,11 @@ func (d *cliManifestDecoder) linkSingleRouteCommand(cmd *CLICommand) error {
 			return err
 		}
 	}
+	if cmd.Output != nil && cmd.Output.Outcome != nil {
+		if err := d.linkOutcome(owner, cmd.Output.Outcome, route.OperationID, opInfo); err != nil {
+			return err
+		}
+	}
 	artifactOpInfo := opInfo
 	artifactOpID := route.OperationID
 	projectionSchema := cliOperationProjectionSchema(opInfo)
@@ -509,6 +514,11 @@ func (d *cliManifestDecoder) linkOperation(op *CLIOperation) error {
 			return err
 		}
 	}
+	if op.Output != nil && op.Output.Outcome != nil {
+		if err := d.linkOutcome(fmt.Sprintf("operation %q", op.OperationID), op.Output.Outcome, op.OperationID, opInfo); err != nil {
+			return err
+		}
+	}
 	if len(op.Flags) == 0 {
 		return nil
 	}
@@ -550,6 +560,11 @@ func (d *cliManifestDecoder) linkDispatchCommand(cmd *CLICommand) error {
 	}
 	if cmd.Output != nil && cmd.Output.Stream != nil {
 		if err := d.linkStreamProjection(fmt.Sprintf("command %q", key), cmd.Output.Stream, operationID, opInfo); err != nil {
+			return err
+		}
+	}
+	if cmd.Output != nil && cmd.Output.Outcome != nil {
+		if err := d.linkOutcome(fmt.Sprintf("command %q", key), cmd.Output.Outcome, operationID, opInfo); err != nil {
 			return err
 		}
 	}
@@ -1018,6 +1033,125 @@ func (d *cliManifestDecoder) linkAsync(cmdKey string, cmd *CLICommand, createInf
 	recipe.CreateResponseCode = createInfo.responseCode
 	recipe.ResponseCode = pollInfo.responseCode
 	return pollInfo, nil
+}
+
+// linkOutcome validates output.outcome against the operation's own
+// responses. The JSON state pointer must select a closed string enum in
+// every application/json 2xx response and the states table must classify
+// exactly that enum, so an API state can never reach the runtime
+// unclassified. The stream state pointer is checked like a stream
+// projection: it must address a string in at least one event shape. Error
+// pointers must address an object or an array in every JSON response
+// variant; events are not re-walked for the stream error pointer because the
+// failure detail may legitimately live on only the terminal event shape.
+func (d *cliManifestDecoder) linkOutcome(owner string, outcome *CLICommandOutcome, opID string, opInfo *cliOperationInfo) error {
+	if outcome.StatePointer != "" {
+		if len(opInfo.jsonResponses) == 0 {
+			return fmt.Errorf("%s output.outcome.statePointer %s: operation %q has no application/json 2xx response to inspect; a streaming-only operation declares streamStatePointer instead", owner, outcome.StateFrom, opID)
+		}
+		enumStates := map[string]bool{}
+		for _, response := range opInfo.jsonResponses {
+			stateFacts, err := d.linkAsyncResponsePointer(outcome.StateFrom, response.schema, true)
+			if err != nil {
+				return fmt.Errorf("%s output.outcome.statePointer %s in operation %q response %s: %w", owner, outcome.StateFrom, opID, response.code, err)
+			}
+			for _, facts := range stateFacts {
+				if facts.openEnum {
+					return fmt.Errorf("%s output.outcome.statePointer %s in operation %q response %s is an open enum; every possible state must be classifiable at generation time", owner, outcome.StateFrom, opID, response.code)
+				}
+				for _, value := range facts.enum {
+					state, ok := value.(string)
+					if !ok {
+						return fmt.Errorf("%s output.outcome.statePointer %s in operation %q response %s has a non-string enum member %v", owner, outcome.StateFrom, opID, response.code, value)
+					}
+					enumStates[state] = true
+				}
+			}
+		}
+		for state := range outcome.States {
+			if !enumStates[state] {
+				return fmt.Errorf("%s output.outcome.states classifies %q, which is not an enum member at %s in operation %q%s", owner, state, outcome.StateFrom, opID, cliDidYouMean(state, cliSortedKeys(enumStates)))
+			}
+		}
+		for state := range enumStates {
+			if _, classified := outcome.States[state]; !classified {
+				return fmt.Errorf("%s output.outcome.states does not classify enum member %q from %s in operation %q; classify every member as pending, success, failure, or handoff", owner, state, outcome.StateFrom, opID)
+			}
+		}
+		if outcome.ErrorPointer != "" {
+			for _, response := range opInfo.jsonResponses {
+				if err := d.linkOutcomeErrorPointer(outcome.ErrorFrom, response.schema); err != nil {
+					return fmt.Errorf("%s output.outcome.errorPointer %s in operation %q response %s: %w", owner, outcome.ErrorFrom, opID, response.code, err)
+				}
+			}
+		}
+	}
+	if outcome.StreamStatePointer != "" {
+		if !opInfo.streamMediaSeen {
+			return fmt.Errorf("%s declares output.outcome.streamStatePointer, but operation %q has no streaming (text/event-stream or JSONL) success response", owner, opID)
+		}
+		if err := d.linkStreamSelection(owner, "output.outcome.streamStatePointer", outcome.StreamStateFrom, opInfo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// linkOutcomeErrorPointer walks a failure-detail path through every
+// traversable variant of a JSON response schema and requires the leaf to be
+// an object or an array in each of them.
+func (d *cliManifestDecoder) linkOutcomeErrorPointer(path string, responseSchema any) error {
+	segments, err := cliParseSingularPath(path)
+	if err != nil {
+		return err
+	}
+	views, err := d.artifactExpand(responseSchema, 0)
+	if err != nil {
+		return err
+	}
+	if len(views) == 0 {
+		return stderrors.New("response schema has no traversable object variant")
+	}
+	for i, segment := range segments {
+		var next []*cliResolvedSchema
+		for _, view := range views {
+			var child any
+			if segment.IsIndex {
+				if view.raw == nil || view.raw["type"] != "array" {
+					return fmt.Errorf("segment %d ([%d]) does not address an array in every response variant", i+1, segment.Index)
+				}
+				child = view.raw["items"]
+				if child == nil {
+					return fmt.Errorf("segment %d ([%d]) addresses an array without an items schema", i+1, segment.Index)
+				}
+			} else {
+				var ok bool
+				child, ok = view.properties[segment.Name]
+				if !ok {
+					return fmt.Errorf("segment %d (.%s) does not resolve in every response variant%s", i+1, segment.Name, cliDidYouMean(segment.Name, view.propOrder))
+				}
+			}
+			expanded, err := d.artifactExpand(child, 0)
+			if err != nil {
+				return fmt.Errorf("segment %d: %w", i+1, err)
+			}
+			if len(expanded) == 0 {
+				return fmt.Errorf("segment %d does not resolve to a schema in every response variant", i+1)
+			}
+			next = append(next, expanded...)
+		}
+		views = next
+	}
+	for _, view := range views {
+		facts, err := d.propertyFacts(view.raw, nil)
+		if err != nil {
+			return err
+		}
+		if len(facts.kinds) != 1 || (facts.kinds[0] != "object" && facts.kinds[0] != "array") {
+			return stderrors.New("selected failure detail must be an object or an array in every response variant")
+		}
+	}
+	return nil
 }
 
 // linkAsyncErrorBindings validates explicitly declared failure-detail

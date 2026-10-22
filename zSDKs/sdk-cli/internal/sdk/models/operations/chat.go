@@ -109,6 +109,7 @@ func (u ChatRequest) MarshalJSON() ([]byte, error) {
 type ChatData struct {
 	Content    *string `json:"content,omitzero"`
 	ResourceID *string `json:"resource_id,omitzero"`
+	Status     *string `json:"status,omitzero"`
 }
 
 func (c *ChatData) GetContent() *string {
@@ -123,6 +124,13 @@ func (c *ChatData) GetResourceID() *string {
 		return nil
 	}
 	return c.ResourceID
+}
+
+func (c *ChatData) GetStatus() *string {
+	if c == nil {
+		return nil
+	}
+	return c.Status
 }
 
 // ChatStream - A stream containing chat completion tokens

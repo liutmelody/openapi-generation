@@ -27,6 +27,7 @@ func InitIntentRender(parent *cobra.Command) error {
 			flagutil.AnnotationWholeBodyFlag: "body",
 			"speakeasy_strict_body_keys":     "true",
 			"speakeasy_artifact":             "{\"pointer\":[{\"field\":\"steps\"},{\"wild\":true},{\"field\":\"content\"},{\"wild\":true}],\"kind\":\"image\",\"defaultPath\":\"render-{timestamp}-{rand}.{ext}\"}",
+			"speakeasy_outcome":              "{\"statePointer\":\"/status\",\"states\":{\"completed\":\"success\",\"failed\":\"failure\",\"in_progress\":\"pending\",\"requires_action\":\"handoff\"\x7d\x7d",
 		},
 	}
 	intentMeta := flagutil.NonBodyMeta(renderAssetCmdMeta, "")

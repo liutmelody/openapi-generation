@@ -46,6 +46,9 @@ func {{$initFuncName}}(parent *cobra.Command) error {
     parent.Annotations["speakeasy_stream_metadata"] = "{{escapeGoString $cliOp.StreamMetadataJSON}}"
     {{- end}}
     {{- end}}
+    {{- if and $cliOp $cliOp.OutcomeJSON}}
+    parent.Annotations["speakeasy_outcome"] = "{{escapeGoString $cliOp.OutcomeJSON}}"
+    {{- end}}
     {{- if or $hasSecurity $op.Request (hasPagination $op) (hasBinaryResponse $op) (and $cliOp $cliOp.Flags)}}
     cmd := parent // register flags on the parent
     {{- end}}
@@ -72,6 +75,9 @@ func {{$initFuncName}}(parent *cobra.Command) error {
             {{- if $cliOp.StreamMetadataJSON}}
             "speakeasy_stream_metadata": "{{escapeGoString $cliOp.StreamMetadataJSON}}",
             {{- end}}
+            {{- end}}
+            {{- if and $cliOp $cliOp.OutcomeJSON}}
+            "speakeasy_outcome": "{{escapeGoString $cliOp.OutcomeJSON}}",
             {{- end}}
         },
     }
