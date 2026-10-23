@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.950.11] - 2026-10-22
+### :wrench: Chores
+- [`77ec7f4`](https://github.com/speakeasy-api/openapi-generation/commit/77ec7f4a280c824ac718c9c5fca401149fce4653) - use literal shells for the Windows installer CI matrix [skip changelog] ([#136](https://github.com/speakeasy-api/openapi-generation/pull/136)) *(commit by [@AshGodfrey](https://github.com/AshGodfrey))*
+
+
+## [v2.950.10] - 2026-10-22
+### :bug: Bug Fixes
+- [`dd4b186`](https://github.com/speakeasy-api/openapi-generation/commit/dd4b186e86852e1964f6846b79a5295eb8fe7823) - **cli**: make temporary directory cleanup non-fatal in the Windows install script ([#135](https://github.com/speakeasy-api/openapi-generation/pull/135)) *(commit by [@AshGodfrey](https://github.com/AshGodfrey))*
+
+
+## [v2.950.9] - 2026-10-22
+### :wrench: Chores
+- [`6caffd4`](https://github.com/speakeasy-api/openapi-generation/commit/6caffd4a60282caaf7e2cbd8f87c89282274bbfa) - **php**: set up latest PHP 8.3 in test-generator and keep Composer timeout ([#131](https://github.com/speakeasy-api/openapi-generation/pull/131)) *(commit by [@2ynn](https://github.com/2ynn))*
+
+
 ## [v2.950.8] - 2026-10-21
 ### :wrench: Chores
 - [`b55b0c0`](https://github.com/speakeasy-api/openapi-generation/commit/b55b0c071dfe74bf7f751e8587f568659a266095) - **php**: update setup-php to the latest 8.3 patch in CI [skip changelog] ([#127](https://github.com/speakeasy-api/openapi-generation/pull/127)) *(commit by [@AshGodfrey](https://github.com/AshGodfrey))*
@@ -20656,3 +20671,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v2.950.6]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.5...v2.950.6
 [v2.950.7]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.6...v2.950.7
 [v2.950.8]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.7...v2.950.8
+[v2.950.9]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.8...v2.950.9
+[v2.950.10]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.9...v2.950.10
+[v2.950.11]: https://github.com/speakeasy-api/openapi-generation/compare/v2.950.10...v2.950.11

@@ -13,7 +13,7 @@ features:
     bigint: 0.0.0
     cliCommands: 0.2.0
     constsAndDefaults: 0.0.0
-    core: 0.9.10
+    core: 0.9.11
     customSecuritySchemes: 0.0.0
     decimal: 0.0.0
     deprecations: 0.0.0
@@ -662,7 +662,7 @@ trackedFiles:
   internal/usage/schema.go:
     last_write_checksum: sha1:92fdc3775fa21a6a8283bcaa762beac6faf40e57
   scripts/install.ps1:
-    last_write_checksum: sha1:9dcf40ea00ecb8ceda83d5056f57235b43cf658a
+    last_write_checksum: sha1:c03368407505979c2b4498d0d754c7bcda82769a
   scripts/install.sh:
     last_write_checksum: sha1:ba255d220bc830375d4f2bc34a7ca01e0a0a8fe2
   tests/artifact_test.go:
