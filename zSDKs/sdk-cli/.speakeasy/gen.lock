@@ -232,7 +232,7 @@ trackedFiles:
   internal/config/config.go:
     last_write_checksum: sha1:7d3e1555d3be75dcd615fb460f44bf1a4da784dd
   internal/config/keyring.go:
-    last_write_checksum: sha1:5bd269488f34aaabc3f9817dee887d75f6144cbb
+    last_write_checksum: sha1:893474c3d2734f82532552c53eb3782623933eb1
   internal/explorer/explorer.go:
     last_write_checksum: sha1:c149087aa4be52cdf0b3f9a41d8f0c6dbe47c53f
   internal/explorer/styles.go:
