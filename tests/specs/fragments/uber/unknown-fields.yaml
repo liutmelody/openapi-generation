@@ -1,9 +1,12 @@
 openapi: 3.1.0
-info:
-  title: Unknown fields
-  version: 1.0.0
-servers:
-  - url: http://localhost:35123
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
 paths:
   /anything/unknown-fields-group:
     get:
@@ -31,6 +34,7 @@ paths:
           content:
             application/json:
               schema:
+                title: UnknownFieldsQueryFilter
                 type: object
                 properties:
                   label:
@@ -48,6 +52,7 @@ paths:
   /anything/unknown-fields:
     post:
       operationId: echoUnknownFields
+      x-speakeasy-exclude-test-sdk: [javav2]
       description: Echoes nested objects to exercise preservation of undeclared fields in requests and responses.
       requestBody:
         required: true
@@ -78,6 +83,27 @@ paths:
                     type: string
                   detail:
                     $ref: '#/components/schemas/FieldNode'
+  /anything/unknown-fields-flattened:
+    post:
+      operationId: echoFlattenedUnknownFields
+      description: Echoes a body small enough to be flattened into operation arguments, so undeclared fields can only travel in nested objects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlattenedFields'
+      responses:
+        '200':
+          description: The echoed JSON request.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [json]
+                properties:
+                  json:
+                    $ref: '#/components/schemas/FlattenedFields'
 components:
   schemas:
     FieldEnvelope:
@@ -161,8 +187,7 @@ components:
       required: [kind, text]
       properties:
         kind:
-          type: string
-          enum: [text]
+          $ref: '#/components/schemas/TextChoiceKind'
         text:
           type: string
     NumberChoice:
@@ -170,10 +195,15 @@ components:
       required: [kind, number]
       properties:
         kind:
-          type: string
-          enum: [number]
+          $ref: '#/components/schemas/NumberChoiceKind'
         number:
           type: integer
+    TextChoiceKind:
+      type: string
+      enum: [text]
+    NumberChoiceKind:
+      type: string
+      enum: [number]
     OpenFields:
       type: object
       additionalProperties: true
@@ -242,3 +272,12 @@ components:
         priority:
           type: integer
           default: 1
+    FlattenedFields:
+      type: object
+      description: A body with few enough properties to be flattened into operation arguments.
+      required: [label]
+      properties:
+        label:
+          type: string
+        child:
+          $ref: '#/components/schemas/FieldNode'

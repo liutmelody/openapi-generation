@@ -38,10 +38,6 @@ VARIANTS := primary \
 secondary \
 tertiary \
 quaternary \
-unknown-fields \
-unknown-fields-default \
-unknown-fields-only \
-unknown-fields-methods-only \
 no-zod \
 client-credentials \
 client-credentials-basic \
