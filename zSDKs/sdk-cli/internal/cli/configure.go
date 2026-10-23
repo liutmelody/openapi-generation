@@ -164,53 +164,62 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
 		}
 		if f := cmd.Flags().Lookup("clear"); f != nil && f.Changed {
 			names, _ := cmd.Flags().GetStringSlice("clear")
+			keys := make([]string, 0, len(names))
 			for _, name := range names {
 				switch key := strings.TrimPrefix(strings.TrimSpace(name), "--"); key {
+				case "username", "password", "bearer-auth", "my-api-key", "oauth2", "app-id", "secret", "mobile-auth", "client-id", "client-secret", "token-url", "query-param1", "deprecated-query-param1", "deprecated-query-param2", "lone-query-param", "default-output-format":
+					keys = append(keys, key)
+				default:
+					return flagutil.WithCLIValidation(fmt.Errorf("invalid --clear %q; options: username, password, bearer-auth, my-api-key, oauth2, app-id, secret, mobile-auth, client-id, client-secret, token-url, query-param1, deprecated-query-param1, deprecated-query-param2, lone-query-param, default-output-format", name))
+				}
+			}
+			for _, key := range keys {
+				switch key {
 				case "username":
 					cfg.Security.Username = ""
 				case "password":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("password")
+					if err := config.DeleteStoredSecret("password"); err != nil {
+						return fmt.Errorf("failed to remove --password from the OS keychain: %w", err)
 					}
 					cfg.Security.Password = ""
 				case "bearer-auth":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("bearer-auth")
+					if err := config.DeleteStoredSecret("bearer-auth"); err != nil {
+						return fmt.Errorf("failed to remove --bearer-auth from the OS keychain: %w", err)
 					}
 					cfg.Security.BearerAuth = ""
 				case "my-api-key":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("my-api-key")
+					if err := config.DeleteStoredSecret("my-api-key"); err != nil {
+						return fmt.Errorf("failed to remove --my-api-key from the OS keychain: %w", err)
 					}
 					cfg.Security.MyApiKey = ""
 				case "oauth2":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("oauth2")
+					if err := config.DeleteStoredSecret("oauth2"); err != nil {
+						return fmt.Errorf("failed to remove --oauth2 from the OS keychain: %w", err)
 					}
 					cfg.Security.Oauth2 = ""
 				case "app-id":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("app-id")
+					if err := config.DeleteStoredSecret("app-id"); err != nil {
+						return fmt.Errorf("failed to remove --app-id from the OS keychain: %w", err)
 					}
 					cfg.Security.AppId = ""
 				case "secret":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("secret")
+					if err := config.DeleteStoredSecret("secret"); err != nil {
+						return fmt.Errorf("failed to remove --secret from the OS keychain: %w", err)
 					}
 					cfg.Security.Secret = ""
 				case "mobile-auth":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("mobile-auth")
+					if err := config.DeleteStoredSecret("mobile-auth"); err != nil {
+						return fmt.Errorf("failed to remove --mobile-auth from the OS keychain: %w", err)
 					}
 					cfg.Security.MobileAuth = ""
 				case "client-id":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("client-id")
+					if err := config.DeleteStoredSecret("client-id"); err != nil {
+						return fmt.Errorf("failed to remove --client-id from the OS keychain: %w", err)
 					}
 					cfg.Security.ClientID = ""
 				case "client-secret":
-					if config.KeyringAvailable() {
-						_ = config.DeleteKeyringValue("client-secret")
+					if err := config.DeleteStoredSecret("client-secret"); err != nil {
+						return fmt.Errorf("failed to remove --client-secret from the OS keychain: %w", err)
 					}
 					cfg.Security.ClientSecret = ""
 				case "token-url":
@@ -225,10 +234,8 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
 					cfg.Globals.LoneQueryParam = ""
 				case "default-output-format":
 					cfg.OutputFormat = ""
-				default:
-					return flagutil.WithCLIValidation(fmt.Errorf("invalid --clear %q; options: username, password, bearer-auth, my-api-key, oauth2, app-id, secret, mobile-auth, client-id, client-secret, token-url, query-param1, deprecated-query-param1, deprecated-query-param2, lone-query-param, default-output-format", name))
 				}
-				cleared = append(cleared, strings.TrimPrefix(strings.TrimSpace(name), "--"))
+				cleared = append(cleared, key)
 			}
 			changed = true
 		}

@@ -66,7 +66,7 @@ trackedFiles:
   internal/cli/chat.go:
     last_write_checksum: sha1:9a9077f9bd0eb3ef19d36d461243215c50f3442b
   internal/cli/configure.go:
-    last_write_checksum: sha1:ee8e247c4e7da6ebbf9e20bc80bee879f3bc176a
+    last_write_checksum: sha1:66da0edca07db643976427521977046f4bca216c
   internal/cli/createuser.go:
     last_write_checksum: sha1:5b60000059db85dcf4c90f5e67c37b7fff3cf852
   internal/cli/createwithunion.go:
@@ -232,7 +232,7 @@ trackedFiles:
   internal/config/config.go:
     last_write_checksum: sha1:7d3e1555d3be75dcd615fb460f44bf1a4da784dd
   internal/config/keyring.go:
-    last_write_checksum: sha1:7c0201503038fee2f5eac51bc0f0189e06d3a224
+    last_write_checksum: sha1:5bd269488f34aaabc3f9817dee887d75f6144cbb
   internal/explorer/explorer.go:
     last_write_checksum: sha1:c149087aa4be52cdf0b3f9a41d8f0c6dbe47c53f
   internal/explorer/styles.go:

@@ -170,6 +170,18 @@ func DeleteKeyringValue(key string) error {
 	return withKeyringTimeout(func() error { return backend.Delete(cliName, key) })
 }
 
+// DeleteStoredSecret removes a credential from the OS keychain when it is
+// available. A credential that is not stored there is not an error.
+func DeleteStoredSecret(key string) error {
+	if !KeyringAvailable() {
+		return nil
+	}
+	if err := DeleteKeyringValue(key); err != nil && !errors.Is(err, keyring.ErrNotFound) {
+		return err
+	}
+	return nil
+}
+
 // KeyringAvailable returns whether the OS keychain is accessible.
 // Useful for configure command to decide where to store secrets.
 func KeyringAvailable() bool {
