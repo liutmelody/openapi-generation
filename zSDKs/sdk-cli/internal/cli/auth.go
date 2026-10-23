@@ -68,7 +68,7 @@ Use the configure command for both authentication and global parameters.`,
 Sources are shown as:
   [flag]    - Set via command line flag
   [env]     - Set via environment variable (CLI_*)
-  [keyring] - Set via ` + config.KeychainName() + ` (stored by login/configure command)
+  [keyring] - Set via OS credential store: macOS Keychain, Windows Credential Manager or Secret Service (stored by login/configure command)
   [config]  - Set via config file (~/.config/cli/config.yaml)
   [unset]   - Not configured
 

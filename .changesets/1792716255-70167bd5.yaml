@@ -7,6 +7,6 @@ targets:
     - cli
 type: feat
 bump: patch
-description: add configure --clear to remove stored credentials, global parameters and the default output format, and name the OS credential store in whoami help
+description: add configure --clear to remove stored credentials, global parameters and the default output format, and name the supported OS credential stores in whoami help
 author: TristanSpeakEasy
 date: "2026-10-23"

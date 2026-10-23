@@ -67,7 +67,7 @@ Sources are shown as:
   [flag]    - Set via command line flag
   [env]     - Set via environment variable ({{.Global.Config.EnvVarPrefix}}_*)
 {{- if hasGlobalSecurity}}
-  [keyring] - Set via ` + config.KeychainName() + ` (stored by login/configure command)
+  [keyring] - Set via OS credential store: macOS Keychain, Windows Credential Manager or Secret Service (stored by login/configure command)
 {{- end}}
   [config]  - Set via config file (~/.config/{{sanitizeCliName}}/config.yaml)
   [unset]   - Not configured
