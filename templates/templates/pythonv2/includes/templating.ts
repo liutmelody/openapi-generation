@@ -922,7 +922,7 @@ function templateSDKInitFieldName(name: string, suffix: string): string {
     reserved.push("server_idx");
   }
 
-  let fieldName = sanitizeFieldName(name);
+  let fieldName = sanitizeAttributeName(name);
 
   if (reserved.includes(name)) {
     fieldName += "_" + suffix;
@@ -1096,7 +1096,12 @@ function templateUsageSDKParams(local: UsageContext): string {
               return;
             }
 
-            params.push(`${sanitizeFieldName(parameter.field.Name)}=${value},`);
+            params.push(
+              `${templateSDKInitFieldName(
+                parameter.field.Name,
+                "global",
+              )}=${value},`,
+            );
             break;
           }
         }

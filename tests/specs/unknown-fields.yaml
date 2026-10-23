@@ -5,6 +5,21 @@ info:
 servers:
   - url: http://localhost:35123
 paths:
+  /anything/unknown-fields-group:
+    get:
+      operationId: echoGroupedFields
+      x-speakeasy-group: toJson
+      description: Belongs to a group whose name matches a model serialization helper, which must not rename the group accessor.
+      responses:
+        '200':
+          description: The echoed request URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
   /anything/unknown-fields-query:
     get:
       operationId: echoOptionalJsonQuery

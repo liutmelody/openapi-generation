@@ -177,6 +177,14 @@ def test_model_serialization_methods(options):
     assert json.loads(model.to_json(**options)) == model.to_dict(mode="json", **options)
 
 
+def test_helper_names_reserved_only_on_models():
+    expected_fields = {"to_dict_", "to_json_"} if MODEL_SERIALIZATION_METHODS else {"to_dict", "to_json"}
+    assert set(models.MethodNames.model_fields) == expected_fields
+    with SDK(server_url=HTTPBIN_URL) as sdk:
+        response = sdk.to_json.echo_grouped_fields()
+    assert response.http_meta.response.status_code == 200
+
+
 def test_model_serialization_methods_keep_consts():
     model = models.FieldEnvelopeInput(label="root", choice=models.TextChoice(text="t"), constant=models.ConstFields())
     expected = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed"}}
