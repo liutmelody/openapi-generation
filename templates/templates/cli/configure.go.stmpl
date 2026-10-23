@@ -40,6 +40,7 @@ func initConfigureCmd(parent *cobra.Command) error {
     {{- end}}
     {{- if isAnyInteractiveEnabled}}
     cmd.Flags().String("{{defaultOutputFormatFlag}}", "", "Store the default output format without opening the form. Options: "+strings.Join(output.Formats, ", ")+". Pass an empty value to clear it.")
+    cmd.Flags().StringSlice("{{configureClearFlag}}", nil, "Remove stored values without opening the form (repeatable or comma-separated). Options: {{templateConfigureClearOptions}}")
     {{- end}}
     parent.AddCommand(cmd)
     return nil
@@ -63,8 +64,9 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
     {{- end}}
     {{- if isAnyInteractiveEnabled}}
 
+    var cleared []string
     formMode := interactive.Resolve(cmd).SetupFormMode(flagutil.AnyFlagChanged(cmd, {{templateConfigureFlagNames}}))
-    if cmd.Flags().Changed("{{defaultOutputFormatFlag}}") {
+    if cmd.Flags().Changed("{{defaultOutputFormatFlag}}") || cmd.Flags().Changed("{{configureClearFlag}}") {
         formMode = interactive.FormOff
     }
     {{- end}}
@@ -173,6 +175,11 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
     {{- if hasSecretCLIFields}}
     if keychainStored {
         fmt.Fprintln(out, "Secret credentials stored in OS keychain")
+    }
+    {{- end}}
+    {{- if isAnyInteractiveEnabled}}
+    for _, name := range cleared {
+        fmt.Fprintf(out, "Cleared --%s\n", name)
     }
     {{- end}}
     fmt.Fprintf(out, "Configuration saved to %s\n", config.GetConfigPath())

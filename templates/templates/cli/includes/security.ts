@@ -2721,6 +2721,8 @@ function templateConfigureNonInteractiveStore(): string {
     }
   }
 
+  lines.push(...genConfigureClear());
+
   lines.push(``);
   lines.push(`if !changed {`);
   lines.push(
@@ -2733,6 +2735,69 @@ function templateConfigureNonInteractiveStore(): string {
 registerTemplateFunc(
   "templateConfigureNonInteractiveStore",
   templateConfigureNonInteractiveStore,
+);
+
+const CONFIGURE_CLEAR_FLAG = "clear";
+
+function configureClearableNames(): string[] {
+  return [...storedFlagNames("configure"), DEFAULT_OUTPUT_FORMAT_FLAG];
+}
+
+function genConfigureClear(): string[] {
+  const options = configureClearableNames().join(", ");
+  const lines: string[] = [];
+  lines.push(
+    `if f := cmd.Flags().Lookup("${CONFIGURE_CLEAR_FLAG}"); f != nil && f.Changed {`,
+  );
+  lines.push(
+    `    names, _ := cmd.Flags().GetStringSlice("${CONFIGURE_CLEAR_FLAG}")`,
+  );
+  lines.push(`    for _, name := range names {`);
+  lines.push(
+    `        switch key := strings.TrimPrefix(strings.TrimSpace(name), "--"); key {`,
+  );
+
+  const secAcc = securityConfigAccessor();
+  for (const field of getCLISecurityFields()) {
+    const cfgField = `${secAcc}${caser().ToPascal(field.field.Name)}`;
+    lines.push(`        case "${field.flagName}":`);
+    if (field.isSecret) {
+      lines.push(`            if config.KeyringAvailable() {`);
+      lines.push(
+        `                _ = config.DeleteKeyringValue("${field.flagName}")`,
+      );
+      lines.push(`            }`);
+    }
+    lines.push(`            ${cfgField} = ${field.isArray ? "nil" : `""`}`);
+  }
+  if (hasGlobals()) {
+    const globAcc = globalsConfigAccessor();
+    for (const field of context.Global.AST.MainSDK.Globals.Fields) {
+      lines.push(`        case "${sanitizeFlagNameWithReserved(field.Name)}":`);
+      lines.push(`            ${globAcc}${caser().ToPascal(field.Name)} = ""`);
+    }
+  }
+  lines.push(`        case "${DEFAULT_OUTPUT_FORMAT_FLAG}":`);
+  lines.push(`            cfg.OutputFormat = ""`);
+  lines.push(`        default:`);
+  lines.push(
+    `            return flagutil.WithCLIValidation(fmt.Errorf("invalid --${CONFIGURE_CLEAR_FLAG} %q; options: ${escapeGoString(
+      options,
+    )}", name))`,
+  );
+  lines.push(`        }`);
+  lines.push(
+    `        cleared = append(cleared, strings.TrimPrefix(strings.TrimSpace(name), "--"))`,
+  );
+  lines.push(`    }`);
+  lines.push(`    changed = true`);
+  lines.push(`}`);
+  return lines;
+}
+
+registerTemplateFunc("configureClearFlag", () => CONFIGURE_CLEAR_FLAG);
+registerTemplateFunc("templateConfigureClearOptions", () =>
+  escapeGoString(configureClearableNames().join(", ")),
 );
 
 registerTemplateFunc(
@@ -2763,6 +2828,7 @@ function templateConfigureFlagNames(): string {
   return goFlagNameArgs([
     ...storedFlagNames("configure"),
     DEFAULT_OUTPUT_FORMAT_FLAG,
+    CONFIGURE_CLEAR_FLAG,
   ]);
 }
 registerTemplateFunc("templateConfigureFlagNames", templateConfigureFlagNames);

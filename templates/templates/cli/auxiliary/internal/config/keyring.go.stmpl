@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -168,6 +169,18 @@ func SetKeyringValue(key, value string) error {
 // DeleteKeyringValue removes a credential from the OS keychain.
 func DeleteKeyringValue(key string) error {
 	return withKeyringTimeout(func() error { return backend.Delete(cliName, key) })
+}
+
+// KeychainName is the user-facing name of the OS credential store.
+func KeychainName() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "macOS Keychain"
+	case "windows":
+		return "Windows Credential Manager"
+	default:
+		return "Secret Service keyring"
+	}
 }
 
 // KeyringAvailable returns whether the OS keychain is accessible.

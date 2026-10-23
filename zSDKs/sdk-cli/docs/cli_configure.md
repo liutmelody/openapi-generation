@@ -20,6 +20,7 @@ cli configure [flags]
 ### Options
 
 ```
+      --clear strings                  Remove stored values without opening the form (repeatable or comma-separated). Options: username, password, bearer-auth, my-api-key, oauth2, app-id, secret, mobile-auth, client-id, client-secret, token-url, query-param1, deprecated-query-param1, deprecated-query-param2, lone-query-param, default-output-format
       --default-output-format string   Store the default output format without opening the form. Options: pretty, json, yaml, table, toon. Pass an empty value to clear it.
   -h, --help                           help for configure
 ```

@@ -20,7 +20,7 @@ func initWhoamiCmd(parent *cobra.Command) error {
 Sources are shown as:
   [flag]    - Set via command line flag
   [env]     - Set via environment variable (CLI_*)
-  [keyring] - Set via OS keychain (stored by configure command)
+  [keyring] - Set via ` + config.KeychainName() + ` (stored by configure command)
   [config]  - Set via config file (~/.config/cli/config.yaml)
   [default] - Built-in global parameter flag default
   [unset]   - Not configured

@@ -1,0 +1,12 @@
+id: 1792716255-70167bd5
+features:
+    - core
+    - globals
+    - globalSecurity
+targets:
+    - cli
+type: feat
+bump: patch
+description: add configure --clear to remove stored credentials, global parameters and the default output format, and name the OS credential store in whoami help
+author: TristanSpeakEasy
+date: "2026-10-23"
