@@ -24,6 +24,7 @@ var fileMode = map[string]fs.FileMode{
 	"templates/cli/auxiliary/internal":                                                                                  0o20000000755,
 	"templates/cli/auxiliary/internal/client":                                                                           0o20000000755,
 	"templates/cli/auxiliary/internal/client/client.go.stmpl":                                                           0o644,
+	"templates/cli/auxiliary/internal/client/client_test.go.stmpl":                                                      0o644,
 	"templates/cli/auxiliary/internal/client/diagnostics.go.stmpl":                                                      0o644,
 	"templates/cli/auxiliary/internal/clierrors":                                                                        0o20000000755,
 	"templates/cli/auxiliary/internal/clierrors/clierrors.go.stmpl":                                                     0o644,

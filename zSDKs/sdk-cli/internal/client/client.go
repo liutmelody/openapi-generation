@@ -15,6 +15,7 @@ import (
 	"openapi/internal/sdk/retry"
 	"openapi/internal/testclient"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -71,13 +72,27 @@ func NewClient(cmd *cobra.Command, allowedSecurityFields ...string) (*sdk.SDK, e
 
 	// Diagnostics and test client composition.
 	// Order: test client (innermost) → diagnostics wrapper (outermost).
-	var httpClient HTTPClient = &http.Client{Transport: newPhaseBoundedTransport(cmd)}
+	var httpClient HTTPClient = &http.Client{Transport: newPhaseBoundedTransport(cmd), CheckRedirect: SameOriginRedirect}
 	if testClient := testclient.NewTestHTTPClient(); testClient != nil {
 		httpClient = testClient
 	}
 	httpClient = WrapClientForDiagnostics(cmd, httpClient)
 	sdkOpts = append(sdkOpts, sdk.WithClient(httpClient))
 	return sdk.New(sdkOpts...), nil
+}
+
+// SameOriginRedirect refuses redirects to another scheme or host: net/http
+// forwards custom credential headers (API keys) and replays 307/308 bodies
+// across origins.
+func SameOriginRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("stopped after 10 redirects")
+	}
+	from := via[0].URL
+	if req.URL.Scheme != from.Scheme || !strings.EqualFold(req.URL.Host, from.Host) {
+		return fmt.Errorf("refusing to follow a redirect from %s://%s to %s://%s: credentials are only sent to the configured server", from.Scheme, from.Host, req.URL.Scheme, req.URL.Host)
+	}
+	return nil
 }
 
 func newPhaseBoundedTransport(cmd *cobra.Command) http.RoundTripper {
