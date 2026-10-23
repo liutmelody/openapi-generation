@@ -101,6 +101,7 @@ class {{$className}}(BaseModel):
         {{-     end}}
         {{-   end}}
         {{- end}}
+        {{- /* Pydantic writes extras after declared fields, so an extra under a field's emitted key replaces that field's value */}}
         serialized = handler(self)
         m = {}
         {{- if $modelSerializationMethods}}
