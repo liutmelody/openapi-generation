@@ -91,7 +91,7 @@ func executeRenderAssetCmd(cmd *cobra.Command, args []string, asyncIntent bool) 
 		sdkOpts = append(sdkOpts, operations.WithSkipDeserialization())
 	}
 	if !client.IsDryRun(cmd) && !asyncIntent {
-		stopProgress := func() {}
+		stopProgress := output.StartRequestProgress(cmd)
 		res, err := s.RenderAsset(cmd.Context(), *request, sdkOpts...)
 		if err != nil {
 			stopProgress()

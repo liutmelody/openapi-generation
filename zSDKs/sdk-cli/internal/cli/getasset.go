@@ -71,7 +71,7 @@ func runGetAssetCmd(cmd *cobra.Command, args []string) error {
 	// Streaming response — iterate events and output incrementally.
 	// Skip streaming iteration in dry-run mode (synthetic response has no stream).
 	if !client.IsDryRun(cmd) {
-		stopProgress := func() {}
+		stopProgress := output.StartRequestProgress(cmd)
 		res, err := s.GetAsset(cmd.Context(), *req, sdkOpts...)
 		if err != nil {
 			stopProgress()

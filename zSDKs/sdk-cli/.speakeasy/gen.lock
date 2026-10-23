@@ -64,7 +64,7 @@ trackedFiles:
   internal/cli/binaryandstringupload.go:
     last_write_checksum: sha1:20d8028b7618e73dcf1763372f9145ea325b32b0
   internal/cli/chat.go:
-    last_write_checksum: sha1:5d43b3ba3a46273cedf95a25e1466cba2d7a1d35
+    last_write_checksum: sha1:e195b15f923b77ba9c19861e0145ba17dd896c2c
   internal/cli/configure.go:
     last_write_checksum: sha1:91f681e0c0bb3ec3fccfe48939b8bb0b71d89619
   internal/cli/createuser.go:
@@ -74,7 +74,7 @@ trackedFiles:
   internal/cli/deleteuser.go:
     last_write_checksum: sha1:e6876685816745a290da3903a03a3afe8f0812e7
   internal/cli/getasset.go:
-    last_write_checksum: sha1:a8f08c2f09245d9b95c0ace79df1048ad570584f
+    last_write_checksum: sha1:88824e116bf23f10a35e329a86917ccbc0daf7b2
   internal/cli/getbinarydefaultresponse.go:
     last_write_checksum: sha1:75df919b8b943ca85ed7299d14cd2c5ee7cb7b56
   internal/cli/getduplicateexportcollision.go:
@@ -180,13 +180,13 @@ trackedFiles:
   internal/cli/postfile.go:
     last_write_checksum: sha1:f67d5ddcaa3ea921513ee6f97fe5eb8db9580aae
   internal/cli/renderasset.go:
-    last_write_checksum: sha1:53d22b867c45e2a0b1e9a671d1f6b3d4dc439a5a
+    last_write_checksum: sha1:6ac1b5552a2f82c3ee4a300084f75af0972bda96
   internal/cli/root.go:
     last_write_checksum: sha1:48f538b9ead4f7b896c5064555a05f04987b0e1c
   internal/cli/streammetadata/root.go:
     last_write_checksum: sha1:42a01737002d2daef8a33be267f7060659fdac65
   internal/cli/streammetadata/streammetadata.go:
-    last_write_checksum: sha1:9278f96c6eec411ec6b740105d5f45fc8120fcec
+    last_write_checksum: sha1:43dea3efb32cb60d4b1bfd90454959678111c465
   internal/cli/tag1/auth.go:
     last_write_checksum: sha1:f25ba9acd8909779428dd8bc0a7eeab5f5a292a4
   internal/cli/tag1/deprecated1.go:
@@ -1104,7 +1104,7 @@ trackedFiles:
   tests/readme_examples_test.go:
     last_write_checksum: sha1:441c213c8049299e7b3efd8cb7033e5885610a20
   tests/request_progress_test.go:
-    last_write_checksum: sha1:fbc7850aea432536d6bb83002a062aed3884346d
+    last_write_checksum: sha1:9b64e6626ee244a6a36d1c1b8bb0b0d20ed48a6e
   tests/sdk_test.go:
     last_write_checksum: sha1:0ac872f31dea293b708409ea99d662eafa9725b5
   tests/singlebar_test.go:

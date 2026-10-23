@@ -157,7 +157,7 @@ func TestRequestProgressStreamClearsBeforeFirstEvent(t *testing.T) {
 	require.Contains(t, got, "fixture request")
 	event := strings.Index(got, "first-event")
 	require.GreaterOrEqual(t, event, 0)
-	require.Contains(t, got[:event], "\r\x1b[2K")
+	require.True(t, strings.HasSuffix(got[:event], "\r\x1b[2K"), "progress must be cleared immediately before the first event")
 	require.NotContains(t, got[event:], "fixture request")
 }
 
@@ -174,7 +174,7 @@ func TestRequestProgressStreamFallbackClearsBeforeResult(t *testing.T) {
 	require.Contains(t, got, "fixture request")
 	result := strings.Index(got, "single-result")
 	require.GreaterOrEqual(t, result, 0)
-	require.Contains(t, got[:result], "\r\x1b[2K")
+	require.True(t, strings.HasSuffix(got[:result], "\r\x1b[2K"), "progress must be cleared immediately before the result")
 }
 
 func TestRequestProgressSuppressionFlags(t *testing.T) {
