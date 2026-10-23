@@ -1,0 +1,40 @@
+openapi: 3.1.0
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
+components:
+  schemas:
+    OpenEnumScalarUnions:
+      x-speakeasy-include: true
+      type: object
+      description: >-
+        Properties whose union combines an open enum with a number or boolean.
+        A number or boolean held in such a union must keep its value and JSON
+        type when serialized, rather than being converted as if it were an
+        unrecognized enum value.
+      properties:
+        stringOrNumber:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarString'
+            - type: number
+        stringOrBoolean:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarString'
+            - type: boolean
+        integerOrNumber:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarInteger'
+            - type: number
+    OpenEnumScalarString:
+      type: string
+      enum: [known]
+      x-speakeasy-unknown-values: allow
+    OpenEnumScalarInteger:
+      type: integer
+      enum: [1, 2]
+      x-speakeasy-unknown-values: allow

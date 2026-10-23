@@ -2,8 +2,8 @@
 
 from pydantic import ConfigDict, model_serializer
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic_core import core_schema
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar, Union
+from pydantic_core import PydanticSerializationUnexpectedValue, core_schema
+from typing import TYPE_CHECKING, Any, Literal, Optional, Type, TypeVar, Union
 from typing_extensions import TypeAliasType, TypeAlias
 
 
@@ -37,12 +37,18 @@ else:
     )
 
 
-def _serialize_unrecognized(
-    value: Union[str, int], info: core_schema.SerializationInfo
-) -> Union[str, int]:
-    if info.mode == "python":
-        return value
-    return str(value) if isinstance(value, str) else int(value)
+def _unrecognized_serialization(
+    cls: Type[Union[str, int]],
+) -> core_schema.PlainSerializerFunctionSerSchema:
+    def serialize(value: Any, info: core_schema.SerializationInfo) -> Any:
+        # Decline other values so union serialization tries the remaining members
+        if not isinstance(value, cls):
+            raise PydanticSerializationUnexpectedValue(f"Expected {cls.__name__}")
+        if info.mode == "python":
+            return value
+        return str(value) if isinstance(value, str) else int(value)
+
+    return core_schema.plain_serializer_function_ser_schema(serialize, info_arg=True)
 
 
 class UnrecognizedStr(str):
@@ -68,9 +74,7 @@ class UnrecognizedStr(str):
                 ]
             ),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                _serialize_unrecognized, info_arg=True
-            ),
+            serialization=_unrecognized_serialization(cls),
         )
 
 
@@ -94,7 +98,5 @@ class UnrecognizedInt(int):
                 ]
             ),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                _serialize_unrecognized, info_arg=True
-            ),
+            serialization=_unrecognized_serialization(cls),
         )

@@ -7,12 +7,14 @@ This tests the behavior of Union[Literal["known"], UnrecognizedStr] and Union[Li
 - Smart union mode correctly discriminates between union members based on field matches
 """
 
+import warnings
+
 import pytest
 from typing import Union, Literal, Optional
 from pydantic import BaseModel, ValidationError, TypeAdapter, ConfigDict
 from .common_helpers import record_test
 
-from openapi import SDK
+from openapi import SDK, utils
 from openapi.models import shared, operations
 from openapi.types import UnrecognizedStr, UnrecognizedInt
 
@@ -1368,3 +1370,28 @@ class TestSmartUnionSDKCalls:
         assert res.res is not None
         assert isinstance(res.res.json_, shared.ObjectWithOpenEnumStatus2)
         assert res.res.json_.reason == "User requested deactivation"
+
+
+class TestOpenEnumScalarUnionSerialization:
+    @pytest.mark.parametrize("payload, wire", [
+        ({"stringOrNumber": 1.5}, '{"stringOrNumber":1.5}'),
+        ({"stringOrNumber": "future"}, '{"stringOrNumber":"future"}'),
+        ({"stringOrNumber": "known"}, '{"stringOrNumber":"known"}'),
+        ({"stringOrBoolean": True}, '{"stringOrBoolean":true}'),
+        ({"stringOrBoolean": "future"}, '{"stringOrBoolean":"future"}'),
+        ({"integerOrNumber": 2.5}, '{"integerOrNumber":2.5}'),
+        ({"integerOrNumber": 1}, '{"integerOrNumber":1}'),
+    ])
+    def test_scalar_member_serialization(self, payload, wire):
+        model = shared.OpenEnumScalarUnions.model_validate(payload)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert utils.marshal_json(model, shared.OpenEnumScalarUnions) == wire
+            assert model.model_dump_json(by_alias=True, exclude_none=True) == wire
+            assert model.model_dump(by_alias=True, exclude_none=True) == payload
+
+    def test_unrecognized_values_keep_their_type_in_python_mode(self):
+        model = shared.OpenEnumScalarUnions.model_validate({"stringOrNumber": "future", "stringOrBoolean": "future"})
+        dumped = model.model_dump(by_alias=True, exclude_none=True)
+        assert type(dumped["stringOrNumber"]) is UnrecognizedStr
+        assert type(dumped["stringOrBoolean"]) is UnrecognizedStr
