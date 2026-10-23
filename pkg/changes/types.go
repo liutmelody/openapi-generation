@@ -44,6 +44,7 @@ const (
 	DiffReasonFieldAdded                DiffReason = "field_added"                 // Field was added
 	DiffReasonFieldRemoved              DiffReason = "field_removed"               // Field was removed
 	DiffReasonFieldChanged              DiffReason = "field_changed"               // Single field changed
+	DiffReasonFieldDeprecated           DiffReason = "field_deprecated"            // Field was marked deprecated
 	DiffReasonFieldsChanged             DiffReason = "fields_changed"              // Multiple fields changed
 	DiffReasonUnionOptionAdded          DiffReason = "union_option_added"          // Union option was added
 	DiffReasonUnionOptionRemoved        DiffReason = "union_option_removed"        // Union option was removed

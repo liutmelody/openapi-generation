@@ -1,0 +1,136 @@
+
+[TestChanges_MethodChanges_ServerSentEvents - 1]
+# Test: server_sent_events
+
+## Old Spec:
+```yaml
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /reports:
+    post:
+      operationId: generateReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ReportEvent'
+components:
+  schemas:
+    ReportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [pdf, csv]
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+    ReportEvent:
+      type: object
+      properties:
+        data:
+          type: string
+```
+
+## New Spec:
+```yaml
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /reports:
+    post:
+      operationId: generateReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ReportEvent'
+  /widgets:
+    post:
+      operationId: createWidget
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ReportEvent'
+  /events:
+    get:
+      operationId: tailEvents
+      responses:
+        '200':
+          description: Success
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ReportEvent'
+components:
+  schemas:
+    ReportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [pdf, csv, html]
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+    ReportEvent:
+      type: object
+      properties:
+        data:
+          type: string
+```
+
+## Compact Mode:
+## Python SDK Changes:
+* `sdk.create_widget()`: **Added**
+* `sdk.tail_events()`: **Added**
+* `sdk.generate_report()`: 
+  *  `request.format.enum(html)` **Added**
+
+## Full Mode:
+## Python SDK Changes:
+* `sdk.create_widget()`: **Added**
+* `sdk.tail_events()`: **Added**
+* `sdk.generate_report()`: 
+  *  `request.format.enum(html)` **Added**
+
+---

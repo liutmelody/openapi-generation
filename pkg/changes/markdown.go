@@ -297,7 +297,7 @@ func formatDiffCompact(result TypeDefDiffResult, prefix string, lang string, det
 
 			// This is a leaf node - report it if it's a meaningful change
 			if diff.Reason == DiffReasonFieldAdded || diff.Reason == DiffReasonFieldRemoved ||
-				diff.Reason == DiffReasonFieldChanged || diff.Reason == DiffReasonKind ||
+				diff.Reason == DiffReasonFieldChanged || diff.Reason == DiffReasonFieldDeprecated || diff.Reason == DiffReasonKind ||
 				diff.Reason == DiffReasonUnionOptionAdded || diff.Reason == DiffReasonUnionOptionRemoved ||
 				diff.Reason == DiffReasonUnionOptionChanged || diff.Reason == DiffReasonUnionChanged ||
 				diff.Reason == DiffReasonUnionDiscriminatorAdded ||
@@ -310,17 +310,7 @@ func formatDiffCompact(result TypeDefDiffResult, prefix string, lang string, det
 				}
 				leafPathStr := formatDiffPath(relativePath, lang)
 
-				var action string
-				switch diff.Reason {
-				case DiffReasonFieldAdded, DiffReasonUnionOptionAdded, DiffReasonEnumValueAdded:
-					action = "**Added**"
-				case DiffReasonFieldRemoved, DiffReasonUnionOptionRemoved, DiffReasonEnumValueRemoved:
-					action = "**Removed**"
-				default:
-					action = "**Changed**"
-				}
-
-				partStr := "`" + leafPathStr + "` " + action
+				partStr := "`" + leafPathStr + "` " + formatDiffAction(diff.Reason)
 				if diff.IsBreaking {
 					partStr += " (Breaking ⚠️)"
 				}
@@ -354,24 +344,26 @@ func formatDiffCompact(result TypeDefDiffResult, prefix string, lang string, det
 		}
 	}
 
-	// Generate action based on reason
-	var action string
-	switch result.Reason {
-	case DiffReasonFieldAdded, DiffReasonUnionOptionAdded, DiffReasonEnumValueAdded:
-		action = "**Added**"
-	case DiffReasonFieldRemoved, DiffReasonUnionOptionRemoved, DiffReasonEnumValueRemoved:
-		action = "**Removed**"
-	default:
-		action = "**Changed**"
-	}
-
 	result_str := " " + "`" + pathStr + "`"
-	result_str += " " + action
+	result_str += " " + formatDiffAction(result.Reason)
 	if result.IsBreaking {
 		result_str += " (Breaking ⚠️)"
 	}
 
 	return result_str
+}
+
+func formatDiffAction(reason DiffReason) string {
+	switch reason {
+	case DiffReasonFieldAdded, DiffReasonUnionOptionAdded, DiffReasonEnumValueAdded:
+		return "**Added**"
+	case DiffReasonFieldRemoved, DiffReasonUnionOptionRemoved, DiffReasonEnumValueRemoved:
+		return "**Removed**"
+	case DiffReasonFieldDeprecated:
+		return "**Deprecated**"
+	default:
+		return "**Changed**"
+	}
 }
 
 // formatDiffPath formats a path into a human-readable string, language-specific

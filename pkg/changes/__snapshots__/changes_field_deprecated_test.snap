@@ -1,0 +1,83 @@
+
+[TestChanges_FieldChanges_FieldDeprecated - 1]
+# Test: field_deprecated
+
+## Old Spec:
+```yaml
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /widgets:
+    post:
+      operationId: updateWidget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                color:
+                  type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  nickname:
+                    type: string
+```
+
+## New Spec:
+```yaml
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /widgets:
+    post:
+      operationId: updateWidget
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                color:
+                  type: string
+                  deprecated: true
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  nickname:
+                    type: string
+                    deprecated: true
+```
+
+## Compact Mode:
+## Typescript SDK Changes:
+* `sdk.updateWidget()`: 
+  *  `request.color` **Deprecated**
+  *  `response.nickname` **Deprecated**
+
+## Full Mode:
+## Typescript SDK Changes:
+* `sdk.updateWidget()`: 
+  *  `request.color` **Deprecated**
+  *  `response.nickname` **Deprecated**
+
+---

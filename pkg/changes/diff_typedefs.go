@@ -132,12 +132,19 @@ func diffFieldsShallow(params *DiffTypeDefsParams) []shallowDiffResult {
 		// Check field metadata changes
 		equal, breaking := diffFieldDefs(aField, bField, params)
 		diff := TypeDefDiffResult{Equal: true}
-		if !equal {
+		switch {
+		case !equal:
 			diff = TypeDefDiffResult{
 				Equal:      false,
 				Path:       childPath,
 				Reason:     DiffReasonFieldChanged,
 				IsBreaking: breaking,
+			}
+		case !isFieldDeprecated(aField) && isFieldDeprecated(bField):
+			diff = TypeDefDiffResult{
+				Equal:  false,
+				Path:   childPath,
+				Reason: DiffReasonFieldDeprecated,
 			}
 		}
 
@@ -345,6 +352,10 @@ func diffEnumsShallow(params *DiffTypeDefsParams) []shallowDiffResult {
 	}
 
 	return results
+}
+
+func isFieldDeprecated(field *ast.FieldDef) bool {
+	return field.Comments != nil && field.Comments.Deprecated
 }
 
 // diffFieldDefs compares two field definitions and returns whether they're equal and if any change is breaking

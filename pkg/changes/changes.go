@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	generationaccess "github.com/speakeasy-api/generation-context/access"
 	"github.com/speakeasy-api/openapi-generation/v2/internal/analytics"
 	"github.com/speakeasy-api/openapi-generation/v2/internal/ast"
 	"github.com/speakeasy-api/openapi-generation/v2/internal/document"
@@ -106,6 +107,11 @@ func resolveAST(ctx context.Context, config GenerateOptions) (*ast.AST, *subsyst
 	// Ensure we have a logger
 	if config.Logger == nil {
 		config.Logger = logging.NewLogger(zapcore.DebugLevel)
+	}
+	// The generator skips operations that use feature-gated constructs, such as
+	// server-sent event responses, when no generation access state is present.
+	if _, ok := generationaccess.StateFromContext(ctx); !ok {
+		ctx = generationaccess.WithDirect(ctx)
 	}
 	// Check if schema file exists
 	if _, err := os.Stat(config.SchemaPath); err != nil {
