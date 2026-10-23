@@ -35,6 +35,7 @@ python:
   responseFormat: envelope
   responseSchemaValidation: lenient
   flattenRequests: true
+  preserveUnknownFields: true
   pytestFilterWarnings:
     - error::RuntimeWarning
     # Ensure __del__ method warnings are raised

@@ -7,6 +7,7 @@
 {{- $hasOptionalField := gt (len $optionalFields) 0 -}}
 {{- $hasNullableField := gt (len $nullableFields) 0 -}}
 {{- $hasAdditionalProperties := hasAdditionalPropertiesField $type -}}
+{{- $preserveUnknownFields := .Global.Config.PreserveUnknownFields -}}
 {{- if $hasAdditionalProperties}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
 {{- $fields := (sortFields $type.Fields) -}}
 {{- $className := sanitizeClassName $type.Name }}
@@ -93,11 +94,20 @@ class {{$className}}(BaseModel):
 
         for n, f in type(self).model_fields.items():
             k = f.alias if f.alias is not None else n
+            {{- if $preserveUnknownFields}}
+            {{- /* Pydantic writes extras after declared fields, so an extra under a field's emitted key replaces that field's value */}}
+            {{- /* A nested model is serialized again from its own output, which may already use aliases */}}
+            key = k if info.by_alias or k in serialized else n
+            if key not in serialized and not info.exclude_none:
+                continue
+            val = serialized.pop(key, None)
+            {{- else}}
             if k not in serialized and n not in serialized and not info.exclude_none:
                 continue
             val = serialized.get(k, serialized.get(n))
-            {{- if $hasAdditionalProperties}}
+            {{-   if $hasAdditionalProperties}}
             serialized.pop(k, serialized.pop(n, None))
+            {{-   end}}
             {{- end}}
 
             {{- if and $hasOptionalField $hasNullableField}}
@@ -126,7 +136,7 @@ class {{$className}}(BaseModel):
                     m[k] = val
                 {{- end}}
 
-        {{- if $hasAdditionalProperties}}
+        {{- if or $hasAdditionalProperties $preserveUnknownFields}}
         for k, v in serialized.items():
             m[k] = v
         {{- end}}

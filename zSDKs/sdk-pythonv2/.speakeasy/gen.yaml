@@ -99,6 +99,7 @@ python:
   packageManager: uv
   packageName: openapi
   preApplyUnionDiscriminators: false
+  preserveUnknownFields: false
   pytestFilterWarnings: []
   pytestTimeout: 0
   rawResponseHelpers: false

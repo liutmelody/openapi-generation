@@ -38,6 +38,7 @@ python:
       webhooks: models/webhooks
   maxMethodParams: 5
   flattenRequests: false
+  preserveUnknownFields: true
   packageName: openapi
   rawResponseHelpers: true
   responseFormat: flat

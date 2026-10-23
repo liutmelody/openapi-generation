@@ -6,7 +6,7 @@ management:
   speakeasyVersion: internal
   generationVersion: internal
   releaseVersion: 0.0.1
-  configChecksum: d67daf2ec44e985625b98d32573578c6
+  configChecksum: 908ffac3f2935a4cd93222913042d257
   repoURL: https://github.com/speakeasy-sdks/test-sdk
   installationURL: https://github.com/speakeasy-sdks/test-sdk.git
 features:
@@ -746,7 +746,7 @@ trackedFiles:
   src/speakeasy/new_openapi/types/base64fileinput.py:
     last_write_checksum: sha1:1522687ae3398374c35710cad993a6e82b5ab99d
   src/speakeasy/new_openapi/types/basemodel.py:
-    last_write_checksum: sha1:6295cc5750e00e0323902092f7e52549937b0b9c
+    last_write_checksum: sha1:16e62753ef3b7f377dd826eaff379a519e1096d3
   src/speakeasy/new_openapi/types_.py:
     last_write_checksum: sha1:05e36f6428f04b1ea7d2609aa55f3966868b58f0
   src/speakeasy/new_openapi/utils/__init__.py:

@@ -37,7 +37,9 @@ else:
     )
 
 
-def _unrecognized_serialization(cls: Type[Union[str, int]]) -> core_schema.PlainSerializerFunctionSerSchema:
+def _unrecognized_serialization(
+    cls: Type[Union[str, int]],
+) -> core_schema.PlainSerializerFunctionSerSchema:
     def serialize(value: Any, info: core_schema.SerializationInfo) -> Any:
         # Decline other values so union serialization tries the remaining members
         if not isinstance(value, cls):
@@ -51,10 +53,12 @@ def _unrecognized_serialization(cls: Type[Union[str, int]]) -> core_schema.Plain
 
 class UnrecognizedStr(str):
     @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
+    def __get_pydantic_core_schema__(
+        cls, _source_type: Any, _handler: Any
+    ) -> core_schema.CoreSchema:
         # Make UnrecognizedStr only work in lax mode, not strict mode
         # This makes it a "fallback" option when more specific types (like Literals) don't match
-        def validate_lax(v: Any) -> 'UnrecognizedStr':
+        def validate_lax(v: Any) -> "UnrecognizedStr":
             if isinstance(v, cls):
                 return v
             return cls(str(v))
@@ -63,10 +67,12 @@ class UnrecognizedStr(str):
         # This forces Pydantic to prefer other union members in strict mode
         # and only fall back to UnrecognizedStr in lax mode
         return core_schema.lax_or_strict_schema(
-            lax_schema=core_schema.chain_schema([
-                core_schema.str_schema(),
-                core_schema.no_info_plain_validator_function(validate_lax)
-            ]),
+            lax_schema=core_schema.chain_schema(
+                [
+                    core_schema.str_schema(),
+                    core_schema.no_info_plain_validator_function(validate_lax),
+                ]
+            ),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
             serialization=_unrecognized_serialization(cls),
         )
@@ -74,18 +80,23 @@ class UnrecognizedStr(str):
 
 class UnrecognizedInt(int):
     @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
+    def __get_pydantic_core_schema__(
+        cls, _source_type: Any, _handler: Any
+    ) -> core_schema.CoreSchema:
         # Make UnrecognizedInt only work in lax mode, not strict mode
         # This makes it a "fallback" option when more specific types (like Literals) don't match
-        def validate_lax(v: Any) -> 'UnrecognizedInt':
+        def validate_lax(v: Any) -> "UnrecognizedInt":
             if isinstance(v, cls):
                 return v
             return cls(int(v))
+
         return core_schema.lax_or_strict_schema(
-            lax_schema=core_schema.chain_schema([
-                core_schema.int_schema(),
-                core_schema.no_info_plain_validator_function(validate_lax)
-            ]),
+            lax_schema=core_schema.chain_schema(
+                [
+                    core_schema.int_schema(),
+                    core_schema.no_info_plain_validator_function(validate_lax),
+                ]
+            ),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
             serialization=_unrecognized_serialization(cls),
         )

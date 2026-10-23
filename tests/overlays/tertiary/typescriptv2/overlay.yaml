@@ -1,0 +1,9 @@
+overlay: 1.0.0
+info:
+  title: Overlay ./tests/specs/uber.yaml => tertiary typescriptv2 test spec
+  version: 0.0.0
+actions:
+  # Inline success and error bodies share a generated name, which collides on import
+  # without index modules, flat responses and the legacy naming scheme
+  - target: $.paths.*.*[?(@.operationId == 'echoUnknownFields')]
+    remove: true

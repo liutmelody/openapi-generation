@@ -1,0 +1,10 @@
+id: 1792768307-aaecd177
+features:
+    - core
+targets:
+    - pythonv2
+type: feat
+bump: patch
+description: add preserveUnknownFields to keep undeclared fields in JSON request and response models
+author: 2ynn
+date: "2026-10-23"

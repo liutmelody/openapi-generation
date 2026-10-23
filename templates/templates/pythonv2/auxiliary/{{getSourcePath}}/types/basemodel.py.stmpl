@@ -7,11 +7,14 @@ from typing_extensions import TypeAliasType, TypeAlias
 
 class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(
-        populate_by_name=True, arbitrary_types_allowed=True, protected_namespaces=()
+        populate_by_name=True, arbitrary_types_allowed=True, protected_namespaces=(){{if .Global.Config.PreserveUnknownFields}}, extra="allow"{{end}}
     )
 
 
 class Unset(BaseModel):
+{{- if .Global.Config.PreserveUnknownFields}}
+    model_config = ConfigDict(extra="ignore")
+{{end}}
     @model_serializer(mode="plain")
     def serialize_model(self):
         return UNSET_SENTINEL

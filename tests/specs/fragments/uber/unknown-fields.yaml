@@ -1,0 +1,256 @@
+openapi: 3.1.0
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
+paths:
+  /anything/unknown-fields-query:
+    get:
+      operationId: echoOptionalJsonQuery
+      description: Echoes an optional JSON query parameter without changing its omission semantics.
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          content:
+            application/json:
+              schema:
+                title: UnknownFieldsQueryFilter
+                type: object
+                properties:
+                  label:
+                    type: string
+      responses:
+        '200':
+          description: The echoed request URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+  /anything/unknown-fields:
+    post:
+      operationId: echoUnknownFields
+      x-speakeasy-exclude-test-sdk: [javav2]
+      description: Echoes nested objects to exercise preservation of undeclared fields in requests and responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldEnvelope'
+      responses:
+        '200':
+          description: The echoed JSON request and transport metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [json]
+                properties:
+                  json:
+                    $ref: '#/components/schemas/FieldEnvelope'
+        '400':
+          description: A structured error with additional server fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                  detail:
+                    $ref: '#/components/schemas/FieldNode'
+  /anything/unknown-fields-flattened:
+    post:
+      operationId: echoFlattenedUnknownFields
+      description: Echoes a body small enough to be flattened into operation arguments, so undeclared fields can only travel in nested objects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlattenedFields'
+      responses:
+        '200':
+          description: The echoed JSON request.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [json]
+                properties:
+                  json:
+                    $ref: '#/components/schemas/FlattenedFields'
+components:
+  schemas:
+    FieldEnvelope:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+        child:
+          $ref: '#/components/schemas/FieldNode'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldNode'
+        lookup:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/FieldNode'
+        choice:
+          oneOf:
+            - $ref: '#/components/schemas/TextChoice'
+            - $ref: '#/components/schemas/NumberChoice'
+          discriminator:
+            propertyName: kind
+            mapping:
+              text: '#/components/schemas/TextChoice'
+              number: '#/components/schemas/NumberChoice'
+        plainChoice:
+          anyOf:
+            - $ref: '#/components/schemas/TextFields'
+            - $ref: '#/components/schemas/NumberFields'
+        requiredOnly:
+          $ref: '#/components/schemas/RequiredFields'
+        composed:
+          allOf:
+            - $ref: '#/components/schemas/FieldNode'
+            - type: object
+              properties:
+                category:
+                  type: string
+        split:
+          $ref: '#/components/schemas/SplitFields'
+        empty:
+          $ref: '#/components/schemas/EmptyFields'
+        open:
+          $ref: '#/components/schemas/OpenFields'
+        typed:
+          $ref: '#/components/schemas/TypedFields'
+        typedNodes:
+          $ref: '#/components/schemas/TypedNodes'
+        closed:
+          $ref: '#/components/schemas/ClosedFields'
+        arbitrary: {}
+        futureKind:
+          type: string
+          enum: [first, second]
+          x-speakeasy-unknown-values: allow
+        futureCode:
+          type: integer
+          enum: [1, 2]
+          x-speakeasy-unknown-values: allow
+    FieldNode:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+        nullable:
+          type: [string, 'null']
+        child:
+          $ref: '#/components/schemas/FieldNode'
+    TextChoice:
+      type: object
+      required: [kind, text]
+      properties:
+        kind:
+          $ref: '#/components/schemas/TextChoiceKind'
+        text:
+          type: string
+    NumberChoice:
+      type: object
+      required: [kind, number]
+      properties:
+        kind:
+          $ref: '#/components/schemas/NumberChoiceKind'
+        number:
+          type: integer
+    TextChoiceKind:
+      type: string
+      enum: [text]
+    NumberChoiceKind:
+      type: string
+      enum: [number]
+    OpenFields:
+      type: object
+      additionalProperties: true
+      properties:
+        label:
+          type: string
+    TypedFields:
+      type: object
+      additionalProperties:
+        type: string
+      properties:
+        label:
+          type: string
+    TypedNodes:
+      type: object
+      description: Additional properties typed as an object schema, whose values can carry undeclared fields of their own.
+      additionalProperties:
+        $ref: '#/components/schemas/FieldNode'
+      properties:
+        label:
+          type: string
+    ClosedFields:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: string
+    TextFields:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        label:
+          type: string
+    NumberFields:
+      type: object
+      required: [number]
+      properties:
+        number:
+          type: integer
+        label:
+          type: string
+    RequiredFields:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+    SplitFields:
+      type: object
+      properties:
+        label:
+          type: string
+        id:
+          type: string
+          readOnly: true
+        secret:
+          type: string
+          writeOnly: true
+    EmptyFields:
+      type: object
+      additionalProperties: false
+    FlattenedFields:
+      type: object
+      description: A body with few enough properties to be flattened into operation arguments.
+      required: [label]
+      properties:
+        label:
+          type: string
+        child:
+          $ref: '#/components/schemas/FieldNode'

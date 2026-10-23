@@ -1,0 +1,32 @@
+{{- if and (sdkHasTests .Global.AST) .Global.Config.PreserveUnknownFields -}}
+from typing import Any
+
+from pydantic import BaseModel
+
+
+def drop_unexpected_fields(actual: Any, expected: Any) -> Any:
+    if isinstance(actual, BaseModel) and type(actual) is type(expected):
+        trimmed = actual.model_copy(
+            update={
+                name: drop_unexpected_fields(getattr(actual, name), getattr(expected, name))
+                for name in type(actual).model_fields
+            }
+        )
+        if actual.__pydantic_extra__ is not None:
+            declared = "__pydantic_extra__" in type(actual).__annotations__
+            expected_extra = expected.__pydantic_extra__ or {}
+            trimmed.__pydantic_extra__ = {
+                key: drop_unexpected_fields(value, expected_extra[key]) if key in expected_extra else value
+                for key, value in actual.__pydantic_extra__.items()
+                if declared or key in expected_extra
+            }
+        return trimmed
+    if isinstance(actual, list) and isinstance(expected, list) and len(actual) == len(expected):
+        return [drop_unexpected_fields(a, e) for a, e in zip(actual, expected)]
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        return {
+            key: drop_unexpected_fields(value, expected[key]) if key in expected else value
+            for key, value in actual.items()
+        }
+    return actual
+{{- end}}
