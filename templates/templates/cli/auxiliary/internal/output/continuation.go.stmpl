@@ -230,15 +230,14 @@ func (r *continuationRun) finish() error {
 	if r.limited {
 		return Error(r.cmd, &continuationLimitError{hops: r.hops, resume: r.resumeFields(), hint: r.resumeHint()})
 	}
+	if len(r.missing) > 0 {
+		sort.Strings(r.missing)
+		return Error(r.cmd, r.wrap(WithCLIReason(fmt.Errorf("the response reported state %q but carried no %s to continue with; the output is incomplete", r.state, strings.Join(r.missing, ", ")), ReasonCLIProtocol)))
+	}
 	if IsMachineMode(r.cmd) || r.cmd.Context().Err() != nil {
 		return nil
 	}
 	stderr := r.cmd.ErrOrStderr()
-	if len(r.missing) > 0 {
-		sort.Strings(r.missing)
-		fmt.Fprintf(stderr, "Warning: the response reported state %q but carried no %s to continue with; the output may be incomplete.\n", r.state, strings.Join(r.missing, ", "))
-		return nil
-	}
 	if r.hops > 1 {
 		fmt.Fprintf(stderr, "Continued across %d responses.\n", r.hops)
 	}
@@ -321,14 +320,27 @@ func ContinuationResult(cmd *cobra.Command, request interface{}, hop Continuatio
 	if err != nil {
 		return err
 	}
+	res, err := run.send()
+	if err != nil {
+		return Error(cmd, err)
+	}
+	return run.discrete(res)
+}
+
+// discrete continues from an already-sent response whose body is a single
+// JSON document.
+func (r *continuationRun) discrete(res interface{}) error {
+	cmd, run := r.cmd, r
 	var (
 		last     interface{}
 		payloads []interface{}
 	)
 	for {
-		res, err := run.send()
-		if err != nil {
-			return Error(cmd, err)
+		if len(payloads) > 0 {
+			var err error
+			if res, err = run.send(); err != nil {
+				return Error(cmd, err)
+			}
 		}
 		if flagutil.DidDryRunRequest(cmd) {
 			return Result(cmd, res)
@@ -564,14 +576,21 @@ func ContinuationStream(cmd *cobra.Command, request interface{}, hop Continuatio
 		return Error(cmd, err)
 	}
 	run.beginHop()
-	if err := streamResult(cmd, res, streamFieldName, &streamContinuation{run: run}); err != nil {
+	hops := &streamContinuation{run: run}
+	if err := streamResult(cmd, res, streamFieldName, hops); err != nil || hops.finished {
 		return err
 	}
 	return run.finish()
 }
 
 type streamContinuation struct {
-	run *continuationRun
+	run      *continuationRun
+	finished bool
+}
+
+func (s *streamContinuation) discrete(res interface{}) error {
+	s.finished = true
+	return s.run.discrete(res)
 }
 
 func (s *streamContinuation) observe(frame map[string]interface{}) {
@@ -583,8 +602,16 @@ func (s *streamContinuation) observe(frame map[string]interface{}) {
 func (s *streamContinuation) wrap(err error) error { return s.run.wrap(err) }
 
 func (s *streamContinuation) next() (interface{}, bool, error) {
-	if s.run.state == "" && s.run.resumable() {
-		return nil, false, s.run.wrap(WithCLIReason(errors.New("the stream ended before reporting a final state"), ReasonCLIConnection))
+	switch s.run.outcome.States[s.run.state] {
+	case "continue", "success", "failure":
+	default:
+		if s.run.resumable() {
+			message := "the stream ended before reporting a final state"
+			if s.run.state != "" {
+				message = fmt.Sprintf("the stream ended while the response was still %q", s.run.state)
+			}
+			return nil, false, s.run.wrap(WithCLIReason(errors.New(message), ReasonCLIConnection))
+		}
 	}
 	more, err := s.run.advance()
 	if err != nil || !more {

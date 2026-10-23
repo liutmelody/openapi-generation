@@ -151,6 +151,7 @@ actions:
               statePointer: $.status
               errorPointer: $.error
               states:
+                in_progress: pending
                 more_required: continue
                 budget_reached: success
                 completed: success
@@ -204,18 +205,23 @@ actions:
             stream:
               select: $.data.delta.text
             outcome:
+              statePointer: $.status
+              errorPointer: $.error
               streamStatePointer: $.data.widget.status
               streamErrorPointer: $.data.widget.error
               states:
+                in_progress: pending
                 more_required: continue
                 budget_reached: success
                 completed: success
                 failed: failure
           continuation:
             bind:
-              - streamFrom: [$.data.resumeToken, $.data.widget.resumeToken]
+              - from: $.resumeToken
+                streamFrom: [$.data.resumeToken, $.data.widget.resumeToken]
                 to: $.resumeToken
-              - streamFrom: $.data.widget.id
+              - from: $.id
+                streamFrom: $.data.widget.id
                 to: $.previousId
                 optional: true
             maxHops: 8
@@ -775,7 +781,7 @@ actions:
       post:
         operationId: continuationStream
         tags: [continuation]
-        description: SSE variant of the continued composition; the resume token arrives in stream events and the closing event carries the response's status.
+        description: Continued composition that answers either as an SSE stream, where the resume token arrives in stream events and the closing event carries the response's status, or as a single JSON document.
         servers:
         - url: http://localhost:35456
         requestBody:
@@ -786,12 +792,15 @@ actions:
                 $ref: '#/components/schemas/continuationComposeRequest'
         responses:
           "200":
-            description: Streamed composition events.
+            description: Streamed composition events, or one JSON response.
             content:
               text/event-stream:
                 x-speakeasy-sse-sentinel: "[DONE]"
                 schema:
                   $ref: '#/components/schemas/continuationStreamEvent'
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/continuationWidget'
 - target: $.components.schemas
   update:
     outcomeInteraction:
@@ -853,7 +862,7 @@ actions:
           type: string
         status:
           type: string
-          enum: [more_required, budget_reached, completed, failed]
+          enum: [in_progress, more_required, budget_reached, completed, failed]
         resumeToken:
           type: string
         steps:

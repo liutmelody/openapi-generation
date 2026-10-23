@@ -32,6 +32,7 @@ type streamHops interface {
 	observe(frame map[string]interface{})
 	wrap(err error) error
 	next() (interface{}, bool, error)
+	discrete(res interface{}) error
 }
 
 func streamResult(cmd *cobra.Command, res interface{}, streamFieldName string, hops streamHops) error {
@@ -208,6 +209,9 @@ func streamResult(cmd *cobra.Command, res interface{}, streamFieldName string, h
 				if finishErr := finishJoin(nil); finishErr != nil {
 					return finishErr
 				}
+			}
+			if hops != nil {
+				return hops.discrete(res)
 			}
 			return Result(cmd, res)
 		}

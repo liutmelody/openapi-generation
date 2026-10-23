@@ -56,6 +56,11 @@ func newContinuationServer(t *testing.T, reply func(n int) continuationReply) *c
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, answer.body)
 		case "/continuation/compose/stream":
+			if answer.events == nil {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, answer.body)
+				return
+			}
 			w.Header().Set("Content-Type", "text/event-stream")
 			for _, event := range answer.events {
 				fmt.Fprintf(w, "data: %s\n\n", event)
@@ -242,12 +247,23 @@ func TestContinuationDiscrete(t *testing.T) {
 		assert.Equal(t, []string{"a", "b"}, stepTexts(decodeJSONObject(t, h.GetStdout())))
 	})
 
-	t.Run("a continue state without a resume token stops with a warning", func(t *testing.T) {
+	t.Run("a continue state without a resume token is a protocol error", func(t *testing.T) {
 		srv := newContinuationServer(t, scriptedReplies(discreteReply("w1", "more_required", "", "a", 0, 0)))
 		h, err := runOutcome(t, srv.URL, composeArgs()...)
-		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
 		require.Len(t, srv.sent(), 1)
+		assert.Contains(t, h.GetStdout(), "more_required", "the response is still printed")
 		assert.Contains(t, h.GetStderr(), `reported state "more_required" but carried no $.resumeToken`)
+	})
+
+	t.Run("a continue state without a resume token is reported in json mode", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(discreteReply("w1", "more_required", "", "a", 0, 0)))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		assert.Equal(t, "more_required", decodeJSONObject(t, h.GetStdout())["status"])
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_PROTOCOL", envelope["error_reason"])
+		assert.Equal(t, float64(1), envelope["hops"])
 	})
 
 	t.Run("the hop limit stops an endless continuation", func(t *testing.T) {
@@ -333,6 +349,42 @@ func TestContinuationStream(t *testing.T) {
 		assert.Equal(t, "CLI_CONNECTION", envelope["error_reason"])
 		assert.Equal(t, float64(1), envelope["hops"])
 		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok1"}, envelope["continuation"])
+	})
+
+	t.Run("a stream that ends while still pending is a connection error", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(continuationReply{events: []string{deltaEvent("one", "tok1"), widgetEvent("w1", "in_progress", "")}}))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 1)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_CONNECTION", envelope["error_reason"])
+		assert.Contains(t, envelope["message"], `still "in_progress"`)
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok1", "$.previousId": "w1"}, envelope["continuation"])
+	})
+
+	t.Run("a json answer continues as a discrete response", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			discreteReply("w1", "more_required", "tok1", "a", 0, 0),
+			discreteReply("w2", "completed", "", "b", 0, 0),
+		))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		sent := srv.sent()
+		require.Len(t, sent, 2)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok1", "previousId": "w1"}, sent[1])
+		assert.Equal(t, "w2", decodeJSONObject(t, h.GetStdout())["id"])
+	})
+
+	t.Run("a stream continued by a json answer", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			continuationReply{events: []string{deltaEvent("one", "tok1"), widgetEvent("w1", "more_required", "")}},
+			discreteReply("w2", "completed", "", "b", 0, 0),
+		))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello")
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 2)
+		assert.Contains(t, h.GetStdout(), "one")
+		assert.Contains(t, h.GetStdout(), "w2")
 	})
 
 	t.Run("a stream that ends without a checkpoint is left as is", func(t *testing.T) {
