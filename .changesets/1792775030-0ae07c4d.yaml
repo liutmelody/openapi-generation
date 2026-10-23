@@ -1,0 +1,10 @@
+id: 1792775030-0ae07c4d
+features:
+    - core
+targets:
+    - pythonv2
+type: fix
+bump: patch
+description: leave fields filtered by include, exclude, exclude_unset or exclude_defaults out of model dumps
+author: 2ynn
+date: "2026-10-23"

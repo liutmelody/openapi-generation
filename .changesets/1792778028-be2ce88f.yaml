@@ -1,0 +1,10 @@
+id: 1792778028-be2ce88f
+features:
+    - core
+targets:
+    - pythonv2
+type: fix
+bump: patch
+description: keep the value of fields with an empty API name in model dumps
+author: 2ynn
+date: "2026-10-23"

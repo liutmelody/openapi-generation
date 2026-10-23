@@ -37,13 +37,15 @@ class ListTest1Globals(BaseModel):
     """
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(["queryParam1"])
         serialized = handler(self)
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:
@@ -124,13 +126,15 @@ class ListTest1Request(BaseModel):
     ] = None
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(["queryParam1"])
         serialized = handler(self)
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:
@@ -166,13 +170,15 @@ class ListTest1ResponseBody(BaseModel):
     type: Optional[EnumT] = "First"
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(["type"])
         serialized = handler(self)
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:

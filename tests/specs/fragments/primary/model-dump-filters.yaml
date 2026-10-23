@@ -1,0 +1,86 @@
+openapi: 3.1.0
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
+paths:
+  /errors/model-dump-filters:
+    get:
+      operationId: getFilteredFieldsError
+      description: >-
+        Declares an error response whose body nests an object schema with
+        required, nullable, defaulted and const properties, so that serializing
+        the error body with fields filtered out can be checked against the same
+        rules as ordinary models.
+      tags:
+        - errors
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Error whose body nests FilteredFields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilteredFieldsError"
+components:
+  schemas:
+    FilteredFields:
+      x-speakeasy-include: true
+      type: object
+      description: >-
+        Object with a required renamed property, required and optional nullable
+        properties, a property with a default, a nullable property with a null
+        default, a const property, and nested copies of itself as a property and
+        as array items. Fields that a serializer is asked to leave out (by
+        explicit selection, because they were never set, or because they hold
+        their default) must stay out of the output, while request bodies keep
+        sending required and explicitly set nullable properties as null.
+      required:
+        - displayName
+        - requiredNullable
+        - kind
+      properties:
+        displayName:
+          type: string
+        requiredNullable:
+          type: [string, "null"]
+        optionalNullable:
+          type: [string, "null"]
+        withDefault:
+          type: string
+          default: fallback
+        nullDefault:
+          type: [string, "null"]
+          default: null
+        kind:
+          type: string
+          const: filtered
+        child:
+          $ref: "#/components/schemas/FilteredFields"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilteredFields"
+    FilteredFieldsWithAdditionalProperties:
+      x-speakeasy-include: true
+      type: object
+      description: >-
+        Object with an optional nullable renamed property and untyped
+        additional properties, for request bodies that hold both the renamed
+        property and an additional property keyed by the property's other
+        spelling.
+      properties:
+        displayName:
+          type: [string, "null"]
+      additionalProperties: true
+    FilteredFieldsError:
+      type: object
+      description: Error body that nests FilteredFields.
+      properties:
+        detail:
+          $ref: "#/components/schemas/FilteredFields"

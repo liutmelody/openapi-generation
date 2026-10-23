@@ -19,13 +19,15 @@ class GetDuplicateExportCollisionResponse(BaseModel):
     result: Optional[str] = None
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(["result"])
         serialized = handler(self)
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:

@@ -44,13 +44,15 @@ class SimpleAllOf(BaseModel):
     r"""A boolean property."""
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(["str", "bool"])
         serialized = handler(self)
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:
@@ -90,7 +92,7 @@ class AllOfWithFactoredOutProperties(BaseModel):
     r"""An extra property."""
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(
             ["anOverridingProperty", "anotherProperty", "anExtraProperty"]
         )
@@ -98,7 +100,9 @@ class AllOfWithFactoredOutProperties(BaseModel):
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:
@@ -162,7 +166,7 @@ class GetPolymorphismResponse(BaseModel):
     r"""A form field schema that can be recursive - the array type variant contains an array of RecursiveFormField items."""
 
     @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
+    def serialize_model(self, handler, info):
         optional_fields = set(
             [
                 "oneOfWithUnionDescription",
@@ -177,7 +181,9 @@ class GetPolymorphismResponse(BaseModel):
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
 
             if val != UNSET_SENTINEL:

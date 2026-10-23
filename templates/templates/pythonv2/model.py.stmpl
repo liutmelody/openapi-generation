@@ -76,7 +76,7 @@ class {{$className}}(BaseModel):
     {{-   addImport "pydantic" "model_serializer"}}
     {{-   addImport "types" "UNSET_SENTINEL" true}}
     @model_serializer(mode="wrap")
-    def {{sanitizeSerializeMethodName $type}}(self, handler):
+    def {{sanitizeSerializeMethodName $type}}(self, handler, info):
         {{- $nullDefaultFields := templateNullDefaultFieldList $type}}
         {{- $hasNullDefaultField := gt (len $nullDefaultFields) 0}}
         {{- if $hasOptionalField}}
@@ -92,7 +92,9 @@ class {{$className}}(BaseModel):
         m = {}
 
         for n, f in type(self).model_fields.items():
-            k = f.alias or n
+            k = f.alias if f.alias is not None else n
+            if k not in serialized and n not in serialized and not info.exclude_none:
+                continue
             val = serialized.get(k, serialized.get(n))
             {{- if $hasAdditionalProperties}}
             serialized.pop(k, serialized.pop(n, None))
