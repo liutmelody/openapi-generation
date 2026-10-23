@@ -257,12 +257,12 @@ function sanitizeSDKAccess(sdk: SDK): string {
   let formattedName = "";
   if (group.includes(".") && ".".repeat(group.length) !== group) {
     const pieces = group.split(".");
-    formattedName = sanitizeFieldName(pieces[0]);
+    formattedName = sanitizeSubSDKFieldName(pieces[0]);
     for (const i of pieces.slice(1)) {
-      formattedName += "." + sanitizeFieldName(i);
+      formattedName += "." + sanitizeSubSDKFieldName(i);
     }
   } else {
-    formattedName = sanitizeFieldName(group);
+    formattedName = sanitizeSubSDKFieldName(group);
   }
 
   if (formattedName != "") {
@@ -311,6 +311,20 @@ registerTemplateFunc("sanitizeSDKFileName", sanitizeSDKFileName);
 
 // @ts-ignore
 function sanitizeFieldName(name: string): string {
+  name = sanitizeAttributeName(name);
+
+  if (
+    context.Global.Config.ModelSerializationMethods &&
+    ["to_dict", "to_json"].includes(name)
+  ) {
+    name += "_";
+  }
+
+  return name;
+}
+registerTemplateFunc("sanitizeFieldName", sanitizeFieldName);
+
+function sanitizeAttributeName(name: string): string {
   name = sanitizeName(name);
   if (name.endsWith("_")) {
     name = name.substring(0, name.length - 1);
@@ -326,7 +340,6 @@ function sanitizeFieldName(name: string): string {
 
   return name;
 }
-registerTemplateFunc("sanitizeFieldName", sanitizeFieldName);
 
 function useConflictResistantModelImports(): boolean {
   return !!context.Global.Config.FixFlags?.[
@@ -413,9 +426,7 @@ function doesModuleNameConflictAcrossNamespaces(
 
 // @ts-ignore
 function sanitizeSubSDKFieldName(name: string): string {
-  name = sanitizeFieldName(name);
-
-  return name;
+  return sanitizeAttributeName(name);
 }
 registerTemplateFunc("sanitizeSubSDKFieldName", sanitizeSubSDKFieldName);
 

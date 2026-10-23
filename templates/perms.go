@@ -1738,6 +1738,7 @@ var fileMode = map[string]fs.FileMode{
 	"templates/pythonv2/tests/tertiary/test_body_typeddict_suffix.py":                                              0o644,
 	"templates/pythonv2/tests/tertiary/test_relative_imports.py":                                                   0o644,
 	"templates/pythonv2/tests/tertiary/test_servers.py":                                                            0o644,
+	"templates/pythonv2/tests/tertiary/test_unknown_fields_additional.py":                                          0o644,
 	"templates/pythonv2/testusage":                                                                                 0o20000000755,
 	"templates/pythonv2/testusage/pylintrc":                                                                        0o644,
 	"templates/pythonv2/testusage/pyproject.toml.stmpl":                                                            0o644,

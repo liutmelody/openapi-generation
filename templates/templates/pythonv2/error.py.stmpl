@@ -20,6 +20,13 @@ class {{$className}}Data(BaseModel):
     {{- else}}
     pass
     {{- end}}
+    {{- $constFieldAttributes := templateConstFieldAttributeList $type}}
+    {{- if and .Global.Config.ModelSerializationMethods $constFieldAttributes}}
+    {{-   addImport "typing" "Any"}}
+
+    def model_post_init(self, context: Any, /) -> None:
+        self.__pydantic_fields_set__.update([{{$constFieldAttributes}}])
+    {{- end}}
 {{- else}}
 {{- if and $type.Discriminator $type.IsUnionOpen }}
 {{templateString "open-union.py.stmpl" $local}}

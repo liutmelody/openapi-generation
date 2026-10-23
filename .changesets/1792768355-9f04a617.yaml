@@ -1,0 +1,10 @@
+id: 1792768355-9f04a617
+features:
+    - core
+targets:
+    - pythonv2
+type: feat
+bump: patch
+description: add modelSerializationMethods for to_dict and to_json model helpers
+author: 2ynn
+date: "2026-10-23"

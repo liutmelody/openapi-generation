@@ -1,5 +1,6 @@
 UNKNOWN_FIELD_CASES = [
     ({"futureKind": "third", "futureCode": 3}, {"futureKind": "third", "futureCode": 3}),
+    ({"methodNames": {"toDict": "dictionary", "toJson": "json"}}, {"methodNames": {"toDict": "dictionary", "toJson": "json"}}),
     ({"future": "value"}, {}),
     ({"future": False}, {}),
     ({"empty": {"future": True}}, {"empty": {}}),

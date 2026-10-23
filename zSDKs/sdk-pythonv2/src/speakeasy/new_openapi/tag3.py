@@ -32,7 +32,7 @@ class Tag3(BaseSDK):
         :param obj: A simple object that uses all our supported primitive types and enums and has optional properties.
         :param deprecated_query_param1:
         :param deprecated_query_param2:
-        :param type:
+        :param type_:
         :param retries: Override the default retry configuration for this method
         :param server_url: Override the default server URL for this method
         :param timeout_ms: Override the default request timeout configuration for this method in milliseconds
@@ -190,7 +190,7 @@ class AsyncTag3(AsyncBaseSDK):
         :param obj: A simple object that uses all our supported primitive types and enums and has optional properties.
         :param deprecated_query_param1:
         :param deprecated_query_param2:
-        :param type:
+        :param type_:
         :param retries: Override the default retry configuration for this method
         :param server_url: Override the default server URL for this method
         :param timeout_ms: Override the default request timeout configuration for this method in milliseconds

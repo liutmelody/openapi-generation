@@ -101,6 +101,11 @@ def test_invalid_nullable_value_becomes_unset_like_default_policy():
     assert node.nullable == UNSET
 
 
+def test_helper_names_not_reserved_without_methods():
+    assert set(shared.MethodNames.model_fields) == {"to_dict", "to_json"}
+    assert not hasattr(shared.FieldEnvelope, "to_dict")
+
+
 @pytest.mark.parametrize("typ", [Optional[int], Optional[List[int]], Optional[shared.FieldNode], Any])
 def test_top_level_none_serialization(typ):
     assert utils.marshal_json(None, typ) == ""

@@ -66,7 +66,7 @@ function templateMethodParametersDocsSDKs(operation: Operation): SDKDocType[] {
       }
 
       contents.push({
-        Name: `${sanitizeFieldName(parameter.Name)}`,
+        Name: `${sanitizeParameterName(parameter.Name)}`,
         Type: templateTypeMarkdown({
           fieldDef: parameter,
           source: GeneratedDocSource.SDKDOCS,
@@ -159,7 +159,7 @@ function templateMethodParametersDocs(operation: Operation): string {
       }
 
       contents.push([
-        `\`${sanitizeFieldName(parameter.Name)}\``,
+        `\`${sanitizeParameterName(parameter.Name)}\``,
         templateTypeMarkdown({
           fieldDef: parameter,
         }),

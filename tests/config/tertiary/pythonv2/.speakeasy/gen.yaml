@@ -32,6 +32,7 @@ python:
     relative: true
   maxMethodParams: 0
   flattenRequests: true
+  modelSerializationMethods: true
   packageName: openapi
   responseFormat: envelope
   inputTypedDictSuffix: Param

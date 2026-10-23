@@ -6,7 +6,7 @@ management:
   speakeasyVersion: internal
   generationVersion: internal
   releaseVersion: 0.0.1
-  configChecksum: 908ffac3f2935a4cd93222913042d257
+  configChecksum: 3b5207abcf7df0a028f020866f6e1112
   repoURL: https://github.com/speakeasy-sdks/test-sdk
   installationURL: https://github.com/speakeasy-sdks/test-sdk.git
 features:
@@ -450,9 +450,9 @@ trackedFiles:
   docs/sdks/tag1/README.md:
     last_write_checksum: sha1:75641bf55bd49e50334b7e99fd54a63378c80cbd
   docs/sdks/tag2/README.md:
-    last_write_checksum: sha1:28127913956534d2fb17bdf63dba1ca09f422cf2
+    last_write_checksum: sha1:90953e2716017e6d416fe5e9ea4620d3754173a2
   docs/sdks/tag3/README.md:
-    last_write_checksum: sha1:3084c4529e6c62d2aae53aedf4e312c9c63b4311
+    last_write_checksum: sha1:021701a07814c3368b317b05be9b844c372ad5d9
   docs/sdks/tail/README.md:
     last_write_checksum: sha1:85301e5b05d24da65512656a510aeb15033c1551
   docs/sdks/types/README.md:
@@ -734,9 +734,9 @@ trackedFiles:
   src/speakeasy/new_openapi/tag1.py:
     last_write_checksum: sha1:e7611f7deb992e771ce1117040bb40d21305f466
   src/speakeasy/new_openapi/tag2.py:
-    last_write_checksum: sha1:66f5cc660661e3bde0acb7a0389c5ef9d58665d5
+    last_write_checksum: sha1:e185a5357b789a9ad8654526dca639e034a123ca
   src/speakeasy/new_openapi/tag3.py:
-    last_write_checksum: sha1:f53691aa2a52f6a5b9474e7801c82b85c27cc48f
+    last_write_checksum: sha1:a45f32697dcdb2ec5679117a2fa5f0063a017e39
   src/speakeasy/new_openapi/tail.py:
     last_write_checksum: sha1:7565b3fcac7390be59d87d4bb56b9db60e1b2e3c
   src/speakeasy/new_openapi/testgroup.py:

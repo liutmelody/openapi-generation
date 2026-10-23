@@ -36,6 +36,7 @@ python:
   responseSchemaValidation: lenient
   flattenRequests: true
   preserveUnknownFields: true
+  modelSerializationMethods: true
   pytestFilterWarnings:
     - error::RuntimeWarning
     # Ensure __del__ method warnings are raised

@@ -8,6 +8,29 @@ security:
   - accessToken: []
   - {}
 paths:
+  /anything/unknown-fields-group:
+    get:
+      operationId: echoGroupedFields
+      x-speakeasy-group: toJson
+      x-speakeasy-exclude-test-sdk: [ruby]
+      description: Belongs to a group named like a common model serialization method, so the group accessor must keep its name when models reserve that method name. Its query parameter has the same name, so method arguments and their documentation must keep it too.
+      parameters:
+        - name: toJson
+          in: query
+          required: false
+          description: Echoed back in the request URL.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The echoed request URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
   /anything/unknown-fields-query:
     get:
       operationId: echoOptionalJsonQuery
@@ -57,15 +80,18 @@ paths:
                   json:
                     $ref: '#/components/schemas/FieldEnvelope'
         '400':
-          description: A structured error with additional server fields.
+          description: A structured error with additional server fields and a required const populated by its default.
           content:
             application/json:
               schema:
                 type: object
-                required: [message]
+                required: [message, kind]
                 properties:
                   message:
                     type: string
+                  kind:
+                    type: string
+                    const: invalid
                   detail:
                     $ref: '#/components/schemas/FieldNode'
   /anything/unknown-fields-flattened:
@@ -141,6 +167,8 @@ components:
           $ref: '#/components/schemas/TypedNodes'
         closed:
           $ref: '#/components/schemas/ClosedFields'
+        constant:
+          $ref: '#/components/schemas/ConstFields'
         arbitrary: {}
         futureKind:
           type: string
@@ -150,6 +178,13 @@ components:
           type: integer
           enum: [1, 2]
           x-speakeasy-unknown-values: allow
+        methodNames:
+          type: object
+          properties:
+            toDict:
+              type: string
+            toJson:
+              type: string
     FieldNode:
       type: object
       required: [displayName]
@@ -245,6 +280,19 @@ components:
     EmptyFields:
       type: object
       additionalProperties: false
+    ConstFields:
+      type: object
+      description: A required const alongside optional fields, one of them with a default, so values are populated by their defaults rather than by the caller.
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          const: fixed
+        label:
+          type: string
+        priority:
+          type: integer
+          default: 1
     FlattenedFields:
       type: object
       description: A body with few enough properties to be flattened into operation arguments.

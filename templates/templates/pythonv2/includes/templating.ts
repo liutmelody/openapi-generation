@@ -922,7 +922,7 @@ function templateSDKInitFieldName(name: string, suffix: string): string {
     reserved.push("server_idx");
   }
 
-  let fieldName = sanitizeFieldName(name);
+  let fieldName = sanitizeAttributeName(name);
 
   if (reserved.includes(name)) {
     fieldName += "_" + suffix;
@@ -1096,7 +1096,12 @@ function templateUsageSDKParams(local: UsageContext): string {
               return;
             }
 
-            params.push(`${sanitizeFieldName(parameter.field.Name)}=${value},`);
+            params.push(
+              `${templateSDKInitFieldName(
+                parameter.field.Name,
+                "global",
+              )}=${value},`,
+            );
             break;
           }
         }
@@ -1376,7 +1381,7 @@ function getMethodParamDescriptions(
   const descriptions = fields.map((field) => {
     let description = "";
 
-    const fieldName = sanitizeFieldName(field.Name);
+    const fieldName = sanitizeParameterName(field.Name);
     if (fieldName === "request") {
       description = "The request object to send.";
     } else if (field.Comments && field.Comments.Description) {
@@ -1849,6 +1854,24 @@ function templateOptionalFieldList(typeDef: TypeDef): string {
   return templateFieldList(typeDef, (f) => f.Optional);
 }
 registerTemplateFunc("templateOptionalFieldList", templateOptionalFieldList);
+
+function templateConstFieldAttributeList(typeDef: TypeDef): string {
+  return typeDef.Fields.filter(
+    (f) =>
+      f.Const &&
+      !(f.Optional && f.Const.Value === null) &&
+      !f.IsAdditionalProperties,
+  )
+    .map((f) => {
+      const fieldName = sanitizeFieldName(f.Name);
+      return `"${useUpperCaseConsts() ? fieldName.toUpperCase() : fieldName}"`;
+    })
+    .join(", ");
+}
+registerTemplateFunc(
+  "templateConstFieldAttributeList",
+  templateConstFieldAttributeList,
+);
 
 function templateNullableFieldList(typeDef: TypeDef): string {
   return templateFieldList(typeDef, (f) => f.Nullable);

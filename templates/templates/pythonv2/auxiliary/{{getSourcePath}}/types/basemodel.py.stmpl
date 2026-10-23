@@ -9,6 +9,48 @@ class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(
         populate_by_name=True, arbitrary_types_allowed=True, protected_namespaces=(){{if .Global.Config.PreserveUnknownFields}}, extra="allow"{{end}}
     )
+{{- if .Global.Config.ModelSerializationMethods}}
+
+    def to_dict(
+        self,
+        *,
+        mode: Literal["json", "python"] = "python",
+        use_api_names: bool = True,
+        exclude_unset: bool = True,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        warnings: bool = True,
+    ) -> dict[str, Any]:
+        return self.model_dump(
+            mode=mode,
+            by_alias=use_api_names,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            warnings=warnings,
+            context={SERIALIZATION_METHODS_DUMP: True},
+        )
+
+    def to_json(
+        self,
+        *,
+        indent: Optional[int] = 2,
+        use_api_names: bool = True,
+        exclude_unset: bool = True,
+        exclude_defaults: bool = False,
+        exclude_none: bool = False,
+        warnings: bool = True,
+    ) -> str:
+        return self.model_dump_json(
+            indent=indent,
+            by_alias=use_api_names,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            warnings=warnings,
+            context={SERIALIZATION_METHODS_DUMP: True},
+        )
+{{- end}}
 
 
 class Unset(BaseModel):
@@ -25,6 +67,9 @@ class Unset(BaseModel):
 
 UNSET = Unset()
 UNSET_SENTINEL = "~?~unset~?~sentinel~?~"
+{{- if .Global.Config.ModelSerializationMethods}}
+SERIALIZATION_METHODS_DUMP = "speakeasy_serialization_methods_dump"
+{{- end}}
 
 
 T = TypeVar("T")
