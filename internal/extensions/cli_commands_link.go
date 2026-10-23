@@ -190,19 +190,51 @@ func (d *cliManifestDecoder) linkContinuations(manifest *CLICommandManifest) err
 	}
 	for i := range manifest.Commands {
 		cmd := &manifest.Commands[i]
-		if cmd.Continuation == nil || cmd.Source.Type != CLICommandSourceOperation {
-			continue
-		}
 		var outcome *CLICommandOutcome
 		if cmd.Output != nil {
 			outcome = cmd.Output.Outcome
 		}
 		owner := fmt.Sprintf("command %q", strings.Join(cmd.Path, " "))
+		if cmd.Continuation == nil || cmd.Source.Type != CLICommandSourceOperation {
+			if err := rejectUnusedContinueStates(owner, outcome); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := d.linkContinuation(owner, cmd.Continuation, cmd.Source.Routes[0].OperationID, outcome, cmd.Flags, asyncCreates); err != nil {
 			return err
 		}
 	}
+	for i := range manifest.Operations {
+		op := &manifest.Operations[i]
+		if op.Continuation != nil || op.Output == nil {
+			continue
+		}
+		if err := rejectUnusedContinueStates(fmt.Sprintf("operation %q", op.OperationID), op.Output.Outcome); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// rejectUnusedContinueStates refuses a continue classification that no
+// continuation recipe acts on: the command would otherwise exit 0 on a
+// response that says it is incomplete.
+func rejectUnusedContinueStates(owner string, outcome *CLICommandOutcome) error {
+	if outcome == nil {
+		return nil
+	}
+	var states []string
+	for state, class := range outcome.States {
+		if class == "continue" {
+			states = append(states, state)
+		}
+	}
+	if len(states) == 0 {
+		return nil
+	}
+	sort.Strings(states)
+	return fmt.Errorf("%s classifies output.outcome state %q as continue but declares no continuation recipe; add continuation (on the command or its operation entry) or classify the state as pending, success, or failure", owner, states[0])
 }
 
 func (d *cliManifestDecoder) linkContinuation(owner string, recipe *CLICommandContinuation, opID string, outcome *CLICommandOutcome, flags []CLICommandInput, asyncCreates map[string]string) error {
@@ -320,6 +352,11 @@ func (d *cliManifestDecoder) linkContinuationTarget(owner, opID string, binding 
 	rawVariants := cliUnionMembers(unionMap)
 	if len(rawVariants) == 0 {
 		rawVariants = []any{bodySchema}
+	} else if shared := cliUnionSharedSchema(unionMap); shared != nil {
+		for i, member := range rawVariants {
+			memberMap, _ := member.(map[string]any)
+			rawVariants[i] = cliConjoinSchemas(memberMap, shared)
+		}
 	}
 	for i, raw := range rawVariants {
 		current := raw
@@ -3866,6 +3903,23 @@ func (d *cliManifestDecoder) resolveObjectSchema(schema any, seen []string) (*cl
 		out.unionMembers = members
 	}
 	return out, nil
+}
+
+// cliUnionSharedSchema returns the keywords declared beside a union's
+// oneOf/anyOf, which apply to every member; nil when there are none.
+func cliUnionSharedSchema(unionMap map[string]any) map[string]any {
+	shared := map[string]any{}
+	for key, value := range unionMap {
+		switch key {
+		case "oneOf", "anyOf", "discriminator", "description", "title", "example", "examples":
+			continue
+		}
+		shared[key] = value
+	}
+	if len(shared) == 0 {
+		return nil
+	}
+	return shared
 }
 
 func cliConjoinSchemas(a, b map[string]any) map[string]any {

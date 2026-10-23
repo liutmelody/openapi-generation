@@ -365,6 +365,9 @@ func {{$runFuncName}}(cmd *cobra.Command, args []string) error {
             if err != nil {
                 return nil, err
             }
+            {{- if and (hasResponseTransform $op) (not (hasStreamingResponse $op))}}
+            output.DrainRawBody(res)
+            {{- end}}
             return res, nil
         }
         {{- if hasStreamingResponse $op}}

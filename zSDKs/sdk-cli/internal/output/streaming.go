@@ -124,7 +124,7 @@ func streamResult(cmd *cobra.Command, res interface{}, streamFieldName string, h
 			// Check for context cancellation (Ctrl+C)
 			select {
 			case <-ctx.Done():
-				return false, finishJoin(ctx.Err())
+				return false, finishJoin(wrap(ctx.Err()))
 			default:
 			}
 

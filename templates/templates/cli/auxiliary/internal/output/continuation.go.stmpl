@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"reflect"
 	"sort"
@@ -409,12 +410,8 @@ func mergeContinuationPayloads(cfg *continuationConfig, payloads []interface{}) 
 }
 
 func sumContinuationValues(payloads []interface{}, pointer string) (json.Number, bool) {
-	var (
-		ints   int64
-		floats float64
-		isInt  = true
-		found  bool
-	)
+	total := new(big.Rat)
+	found := false
 	for _, payload := range payloads {
 		value, ok := outcomePointer(payload, pointer)
 		if !ok {
@@ -424,29 +421,21 @@ func sumContinuationValues(payloads []interface{}, pointer string) (json.Number,
 		if !isNumber {
 			continue
 		}
+		term, ok := new(big.Rat).SetString(number.String())
+		if !ok {
+			continue
+		}
+		total.Add(total, term)
 		found = true
-		if n, err := number.Int64(); err == nil && isInt {
-			ints += n
-			floats += float64(n)
-			continue
-		}
-		f, err := number.Float64()
-		if err != nil {
-			continue
-		}
-		if isInt {
-			floats = float64(ints)
-			isInt = false
-		}
-		floats += f
 	}
 	if !found {
 		return "", false
 	}
-	if isInt {
-		return json.Number(strconv.FormatInt(ints, 10)), true
+	if total.IsInt() {
+		return json.Number(total.Num().String()), true
 	}
-	return json.Number(strconv.FormatFloat(floats, 'f', -1, 64)), true
+	approx, _ := total.Float64()
+	return json.Number(strconv.FormatFloat(approx, 'g', -1, 64)), true
 }
 
 func setContinuationPointer(root interface{}, pointer string, value interface{}) interface{} {

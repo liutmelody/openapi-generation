@@ -5910,6 +5910,8 @@ func TestCLICommands_ContinuationErrors(t *testing.T) {
 		{"async conflict", strings.Replace(base, "  watch:\n", "  start:\n    op: ComposeWidget\n    async:\n      op: GetWidget\n      id: {from: $.id, to: {in: path, name: id}}\n      statePointer: $.status\n      states: {in_progress: pending, more_required: pending, budget_reached: success, completed: success, failed: failure}\n      interval: 1s\n      maxInterval: 1s\n      timeout: 1m\n  watch:\n", 1), `async command "start" also uses as its create operation`},
 		{"async and continuation", strings.Replace(base, "  watch:\n    op: StreamWidget\n", "  watch:\n    op: StreamWidget\n    async:\n      op: GetWidget\n      id: {from: $.id, to: {in: path, name: id}}\n      statePointer: $.status\n      states: {completed: success}\n", 1), "declares both async and output.stream"},
 		{"planned command", "version: 1\ncommands:\n  later:\n    planned: later\n    continuation:\n      bind: [{from: $.id, to: $.previousId}]\n", "planned command and cannot declare continuation"},
+		{"command continue state without recipe", strings.Replace(base, "    continuation:\n      bind:\n        - streamFrom: [$.data.resumeToken, $.data.widget.resumeToken]\n          to: $.resumeToken\n        - streamFrom: $.data.widget.id\n          to: $.previousId\n          optional: true\n      maxHops: 4\n      default: false\n", "", 1), `command "watch" classifies output.outcome state "more_required" as continue but declares no continuation recipe`},
+		{"operation continue state without recipe", "version: 1\noperations:\n  GetWidget:\n    output:\n      outcome:\n        statePointer: $.status\n        states: {in_progress: pending, more_required: continue, budget_reached: success, completed: success, failed: failure}\n", `operation "GetWidget" classifies output.outcome state "more_required" as continue but declares no continuation recipe`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, _, err := decodeCLIWithSpec(t, cliContinuationTestSpec, tc.manifest)
@@ -5917,6 +5919,61 @@ func TestCLICommands_ContinuationErrors(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
+}
+
+func TestCLICommands_ContinuationTargetSharedByUnionMembers(t *testing.T) {
+	spec := strings.Replace(cliContinuationTestSpec, `    ComposeRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+        resumeToken:
+          type: string
+        previousId:
+          type: string
+        budget:
+          type: integer
+        options:
+          type: object
+          properties:
+            cursor:
+              type: string
+      required: [prompt]
+`, `    ComposeRequest:
+      type: object
+      properties:
+        resumeToken:
+          type: string
+      oneOf:
+        - $ref: '#/components/schemas/ComposeText'
+        - $ref: '#/components/schemas/ComposeImage'
+    ComposeText:
+      type: object
+      properties:
+        prompt:
+          type: string
+    ComposeImage:
+      type: object
+      properties:
+        image:
+          type: string
+`, 1)
+	require.NotEqual(t, cliContinuationTestSpec, spec)
+	manifest, _, err := decodeCLIWithSpec(t, spec, `
+version: 1
+operations:
+  ComposeWidget:
+    output:
+      outcome:
+        statePointer: $.status
+        states: {in_progress: pending, more_required: continue, budget_reached: success, completed: success, failed: failure}
+    continuation:
+      bind:
+        - from: $.resumeToken
+          to: $.resumeToken
+`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"resumeToken"}, manifest.Operations[0].Continuation.Bind[0].ToPath)
 }
 
 func TestCLICommands_ContinuationAsyncStatesRejectContinue(t *testing.T) {

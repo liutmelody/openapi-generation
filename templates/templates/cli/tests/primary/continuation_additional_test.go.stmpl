@@ -185,6 +185,16 @@ func TestContinuationDiscrete(t *testing.T) {
 		assert.Empty(t, h.GetStderr())
 	})
 
+	t.Run("sums beyond int64 stay exact", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			continuationReply{body: `{"id":"w1","status":"more_required","resumeToken":"tok1","usage":{"inputUnits":9223372036854775807,"outputUnits":1}}`},
+			continuationReply{body: `{"id":"w2","status":"completed","usage":{"inputUnits":1,"outputUnits":2}}`},
+		))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Contains(t, h.GetStdout(), `"usage":{"inputUnits":9223372036854775808,"outputUnits":3}`)
+	})
+
 	t.Run("three responses report the hop count", func(t *testing.T) {
 		srv := newContinuationServer(t, threeHops)
 		h, err := runOutcome(t, srv.URL, composeArgs()...)
