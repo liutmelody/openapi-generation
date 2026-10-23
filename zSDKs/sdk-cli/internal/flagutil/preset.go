@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -369,14 +370,42 @@ type ImpliedBody struct {
 
 // ApplyImpliedBody fills each rule's values into the request body when the
 // body sets the rule's key to true. Keys the request already carries win.
+// The body is the body flag when set, else the body AttachStdinBody attached.
 func ApplyImpliedBody(cmd *cobra.Command, bodyFlag string, rules []ImpliedBody) error {
-	if !FlagChanged(cmd, bodyFlag) || len(rules) == 0 {
+	if len(rules) == 0 {
 		return nil
 	}
-	raw, _ := GetStringFlag(cmd, bodyFlag)
+	if FlagChanged(cmd, bodyFlag) {
+		raw, _ := GetStringFlag(cmd, bodyFlag)
+		implied, changed, err := impliedBody(raw, rules)
+		if err != nil || !changed {
+			return err
+		}
+		return cmd.Flags().Set(bodyFlag, implied)
+	}
+	in := cmd.InOrStdin()
+	if in == os.Stdin {
+		return nil
+	}
+	data, err := io.ReadAll(in)
+	if err != nil {
+		return fmt.Errorf("failed to read stdin: %w", err)
+	}
+	implied, changed, err := impliedBody(string(data), rules)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		implied = string(data)
+	}
+	cmd.SetIn(strings.NewReader(implied))
+	return nil
+}
+
+func impliedBody(raw string, rules []ImpliedBody) (string, bool, error) {
 	var body map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(raw), &body); err != nil || body == nil {
-		return nil
+		return raw, false, nil
 	}
 	changed := false
 	for _, rule := range rules {
@@ -385,7 +414,7 @@ func ApplyImpliedBody(cmd *cobra.Command, bodyFlag string, rules []ImpliedBody) 
 		}
 		var values map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(rule.Values), &values); err != nil {
-			return err
+			return raw, false, err
 		}
 		for key, value := range values {
 			if _, set := body[key]; !set {
@@ -395,11 +424,11 @@ func ApplyImpliedBody(cmd *cobra.Command, bodyFlag string, rules []ImpliedBody) 
 		}
 	}
 	if !changed {
-		return nil
+		return raw, false, nil
 	}
 	encoded, err := json.Marshal(body)
 	if err != nil {
-		return err
+		return raw, false, err
 	}
-	return cmd.Flags().Set(bodyFlag, string(encoded))
+	return string(encoded), true, nil
 }

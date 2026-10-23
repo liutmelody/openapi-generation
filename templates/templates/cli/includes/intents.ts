@@ -286,7 +286,7 @@ function intentImpliedRules(flags: any[]): { Key: string; Values: string }[] {
     const implies: any[] = f.Implies || [];
     const key = intentPointerKey(f.Bind?.Pointer || "");
     if (!implies.length || !key) continue;
-    const values: Record<string, any> = {};
+    const values: Record<string, any> = Object.create(null);
     for (const implied of implies) {
       values[intentPointerKey(implied.Bind?.Pointer || "")] = implied.Value;
     }
