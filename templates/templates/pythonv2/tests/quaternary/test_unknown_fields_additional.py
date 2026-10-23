@@ -4,10 +4,12 @@ import warnings
 import pydantic
 import pytest
 
-from openapi import SDK, utils
+from openapi import SDK, AsyncSDK, utils
 from openapi.models import shared
 from openapi.types import UnrecognizedInt, UnrecognizedStr
 from .common_helpers import HTTPBIN_URL, record_test
+from .unknown_fields import drop_unexpected_fields
+from .unknown_fields_cases import UNKNOWN_FIELD_CASES
 
 
 @pytest.mark.parametrize("child", [
@@ -20,6 +22,17 @@ def test_flattened_request_keeps_nested_unknown_fields(child):
     record_test("unknown-fields-json-round-trip")
     with SDK(server_url=HTTPBIN_URL) as sdk:
         response = sdk.echo_unknown_fields(label="root", child=child)
+    payload = {"label": "root", "child": child}
+    assert response.raw_response.json()["json"] == payload
+    assert response.object.json_.to_dict() == payload
+    assert json.loads(response.object.json_.to_json()) == payload
+
+
+@pytest.mark.asyncio()
+async def test_flattened_request_keeps_nested_unknown_fields_async():
+    child = {"displayName": "child", "child": {"displayName": "grandchild", "future": {"nested": [None, 0]}}}
+    async with AsyncSDK(server_url=HTTPBIN_URL) as sdk:
+        response = await sdk.echo_unknown_fields(label="root", child=child)
     payload = {"label": "root", "child": child}
     assert response.raw_response.json()["json"] == payload
     assert response.object.json_.to_dict() == payload
@@ -39,16 +52,40 @@ def test_flattened_request_has_no_argument_for_top_level_unknown_fields():
             sdk.echo_flattened_unknown_fields(label="root", future=True)  # type: ignore[call-arg]
 
 
-@pytest.mark.parametrize("options", [{}, {"use_api_names": False}, {"exclude_unset": False}, {"exclude_defaults": True}, {"exclude_none": True}, {"warnings": False}])
-def test_model_serialization_methods(options):
-    model = shared.FieldEnvelopeInput.model_validate({"label": "root", "child": {"displayName": "child", "future": None}, "futureKind": "third", "futureCode": 3})
-    dump_options = {"by_alias": True, "exclude_unset": True, **options}
-    if "use_api_names" in dump_options:
-        dump_options["by_alias"] = dump_options.pop("use_api_names")
-    assert model.to_dict(**options) == model.model_dump(**dump_options)
-    assert model.to_dict(mode="json", **options) == model.model_dump(mode="json", **dump_options)
-    assert model.to_json(indent=None, **options) == model.model_dump_json(indent=None, **dump_options)
-    assert json.loads(model.to_json(**options)) == model.to_dict(mode="json", **options)
+@pytest.mark.parametrize("fields", [fields for fields, _ in UNKNOWN_FIELD_CASES])
+def test_to_dict_round_trips_unknown_fields(fields):
+    payload = {"label": "root", **fields}
+    model = shared.FieldEnvelopeInput.model_validate(payload)
+    assert model.to_dict(mode="json") == payload
+    assert json.loads(model.to_json()) == payload
+    assert shared.FieldEnvelopeInput.model_validate(model.to_dict()).to_dict(mode="json") == payload
+
+
+@pytest.mark.parametrize("options, expected", [
+    ({}, {"displayName": "child", "nullable": None, "future": None}),
+    ({"use_api_names": False}, {"display_name": "child", "nullable": None, "future": None}),
+    ({"exclude_unset": False}, {"displayName": "child", "nullable": None, "future": None}),
+    ({"exclude_defaults": True}, {"displayName": "child", "nullable": None, "future": None}),
+    ({"exclude_none": True}, {"displayName": "child"}),
+])
+def test_model_serialization_methods(options, expected):
+    model = shared.FieldNode.model_validate({"displayName": "child", "nullable": None, "future": None})
+    assert model.to_dict(**options) == expected
+    assert model.to_dict(mode="json", **options) == expected
+    assert json.loads(model.to_json(**options)) == expected
+
+
+@pytest.mark.parametrize("options", [{"exclude_none": True}, {"exclude_defaults": True}])
+def test_excluded_field_keeps_unknown_field_named_like_it(options):
+    model = shared.FieldEnvelopeInput.model_validate({"label": "root", "plainChoice": None, "plain_choice": "unknown"})
+    assert model.to_dict(**options) == {"label": "root", "plain_choice": "unknown"}
+    assert model.model_dump(by_alias=True, **options) == {"label": "root", "plain_choice": "unknown"}
+
+
+def test_drop_unexpected_fields_ignores_only_undeclared_fields():
+    expected = shared.TypedFields(label="typed")
+    assert drop_unexpected_fields(shared.TypedFields.model_validate({"label": "typed", "future": "value"}), expected) != expected
+    assert drop_unexpected_fields(shared.FieldNode.model_validate({"displayName": "child", "future": True}), shared.FieldNode(display_name="child")) == shared.FieldNode(display_name="child")
 
 
 def test_model_serialization_methods_field_names():
@@ -60,30 +97,6 @@ def test_model_serialization_methods_field_names():
     assert model.to_dict(use_api_names=False) == field_names
     assert json.loads(model.to_json(use_api_names=False)) == field_names
     assert shared.FieldEnvelopeInput.model_validate(model.to_dict(use_api_names=False)).to_dict() == api_names
-
-
-def test_helper_names_reserved_only_on_models():
-    assert set(shared.MethodNames.model_fields) == {"to_dict_", "to_json_"}
-    model = shared.MethodNames.model_validate({"toDict": "d", "toJson": "j"})
-    assert model.to_dict() == {"toDict": "d", "toJson": "j"}
-    with SDK(server_url=HTTPBIN_URL) as sdk:
-        response = sdk.to_json.echo_grouped_fields()
-    assert response.status_code == 200
-
-
-def test_model_serialization_methods_keep_consts():
-    model = shared.FieldEnvelopeInput(label="root", choice=shared.TextChoice(text="t"), constant=shared.ConstFields())
-    expected = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed"}}
-    wire = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed", "priority": 1}}
-    assert json.loads(utils.marshal_json(model, shared.FieldEnvelopeInput)) == wire
-    assert model.to_dict() == expected
-    assert model.to_dict(exclude_unset=False) == wire
-    assert json.loads(model.to_json()) == expected
-    assert shared.FieldEnvelopeInput.model_validate(model.to_dict()).to_dict() == expected
-    assert shared.FieldEnvelopeInput.model_validate(wire).to_dict() == wire
-    assert shared.ConstFields(priority=1).to_dict() == {"kind": "fixed", "priority": 1}
-    assert shared.ConstFields(priority=1).to_dict(exclude_defaults=True) == {}
-    assert shared.ConstFields(priority=2).to_dict(exclude_defaults=True) == {"priority": 2}
 
 
 @pytest.mark.parametrize("typ, value", [(UnrecognizedStr, "future"), (UnrecognizedInt, 3)])

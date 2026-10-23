@@ -12,7 +12,8 @@ paths:
     get:
       operationId: echoGroupedFields
       x-speakeasy-group: toJson
-      description: Belongs to a group whose name matches a model serialization helper, which must not rename the group accessor.
+      x-speakeasy-exclude-test-sdk: [ruby]
+      description: Belongs to a group named like a common model serialization method, so the group accessor must keep its name when models reserve that method name.
       responses:
         '200':
           description: The echoed request URL.

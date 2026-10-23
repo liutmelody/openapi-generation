@@ -9,36 +9,10 @@ from openapi import SDK, utils
 from openapi.models import errors, shared
 from openapi.types import UNSET, BaseModel, Nullable
 from .common_helpers import HTTPBIN_URL, record_test
+from .unknown_fields_cases import UNKNOWN_FIELD_CASES
 
 
-CASES = [
-    {"futureKind": "third", "futureCode": 3},
-    {"methodNames": {"toDict": "dictionary", "toJson": "json"}},
-    {"future": "value"},
-    {"future": False},
-    {"empty": {"future": True}},
-    {"future": None},
-    {"plainChoice": {"text": "value", "future": True}},
-    {"plainChoice": {"number": 3, "future": True}},
-    {"requiredOnly": {"label": "required", "future": True}},
-    {"future": 0},
-    {"composed": {"displayName": "child", "category": "combined", "future": True}},
-    {"split": {"label": "split", "future": True}},
-    {"future": []},
-    {"future": {"nested": [None, False, 0, "value"]}},
-    {"child": {"displayName": "child", "future": True}},
-    {"child": {"displayName": "child", "display_name": "unknown"}},
-    {"child": {"displayName": "child", "child": {"displayName": "grandchild", "future": True}}},
-    {"children": [{"displayName": "child", "future": True}]},
-    {"lookup": {"one": {"displayName": "child", "future": True}}},
-    {"choice": {"kind": "text", "text": "value", "future": True}},
-    {"choice": {"kind": "number", "number": 3, "future": True}},
-    {"closed": {"label": "closed", "future": True}},
-    {"open": {"label": "open", "future": True}},
-    {"typed": {"label": "typed", "future": "value"}},
-    {"arbitrary": {"future": {"nullable": None}}},
-    {"child": {"displayName": "child", "nullable": None}},
-]
+CASES = [fields for fields, _ in UNKNOWN_FIELD_CASES]
 
 
 def echo(request):
@@ -122,7 +96,7 @@ def test_base_model_unknown_field_policy():
     assert "future" in model.model_dump()
 
 
-def test_unset_ignores_unknown_fields():
+def test_invalid_nullable_value_becomes_unset_like_default_policy():
     node = shared.FieldNode.model_validate({"displayName": "child", "nullable": {"future": True}})
     assert node.nullable == UNSET
 
