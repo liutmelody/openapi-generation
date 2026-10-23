@@ -1,0 +1,76 @@
+openapi: 3.1.0
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
+paths:
+  /primary/optional-nested-additional-properties:
+    post:
+      operationId: primaryOptionalNestedAdditionalProperties
+      description: >-
+        Optional nullable objects can contain nested objects with declared
+        fields and additional properties. Serialization must preserve both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OptionalNestedRequest"
+      responses:
+        "200":
+          description: Optional nested usage details with additional properties.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptionalNestedResponse"
+components:
+  schemas:
+    OptionalNestedRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        configuration:
+          anyOf:
+            - $ref: "#/components/schemas/OptionalNestedConfiguration"
+            - type: "null"
+    OptionalNestedConfiguration:
+      type: object
+      additionalProperties: true
+      properties:
+        options:
+          $ref: "#/components/schemas/OptionalNestedOptions"
+    OptionalNestedOptions:
+      type: object
+      additionalProperties: true
+      required: [kind]
+      properties:
+        kind:
+          type: string
+    OptionalNestedResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        usage:
+          anyOf:
+            - $ref: "#/components/schemas/OptionalNestedUsage"
+            - type: "null"
+    OptionalNestedUsage:
+      type: object
+      additionalProperties: true
+      required: [total, details]
+      properties:
+        total:
+          type: integer
+        details:
+          $ref: "#/components/schemas/OptionalNestedUsageDetails"
+    OptionalNestedUsageDetails:
+      type: object
+      additionalProperties: true
+      required: [reused]
+      properties:
+        reused:
+          type: integer

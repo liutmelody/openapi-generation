@@ -1718,7 +1718,8 @@ function sanitizeAdditionalPropertiesField(
   }
 
   addImport("typing", "Dict");
-  addImport("pydantic", "");
+  // A Field default shadows BaseModel's __pydantic_extra__ slot. Nested union
+  // serialization then treats it as an unexpected field and can select Unset.
   return `Dict[str, ${sanitizePydanticType(
     typeDefToFieldDef(
       field.Type.ItemType,
@@ -1729,7 +1730,7 @@ function sanitizeAdditionalPropertiesField(
     { optional: false, nullable: field.Type.ContainsNull },
     usageLocation,
     owningModelInfo,
-  )}] = pydantic.Field(init=False)`;
+  )}]`;
 }
 registerTemplateFunc(
   "sanitizeAdditionalPropertiesField",

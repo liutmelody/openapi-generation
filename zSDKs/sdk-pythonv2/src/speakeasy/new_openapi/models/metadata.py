@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from ..types import BaseModel, UNSET_SENTINEL
-import pydantic
 from pydantic import ConfigDict, model_serializer
 from typing import Dict, Optional
 from typing_extensions import NotRequired, TypedDict
@@ -16,7 +15,7 @@ class Metadata(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True, arbitrary_types_allowed=True, extra="allow"
     )
-    __pydantic_extra__: Dict[str, str] = pydantic.Field(init=False)
+    __pydantic_extra__: Dict[str, str]
 
     allergies: Optional[str] = None
 

@@ -1691,6 +1691,7 @@ var fileMode = map[string]fs.FileMode{
 	"templates/pythonv2/tests/primary/test_model_serializer_alias.py":                                              0o644,
 	"templates/pythonv2/tests/primary/test_open_discriminated_union.py":                                            0o644,
 	"templates/pythonv2/tests/primary/test_open_enum_union_discrimination.py":                                      0o644,
+	"templates/pythonv2/tests/primary/test_optional_nested_additional.py":                                          0o644,
 	"templates/pythonv2/tests/primary/test_pagination.py":                                                          0o644,
 	"templates/pythonv2/tests/primary/test_parameter_additional.py":                                                0o644,
 	"templates/pythonv2/tests/primary/test_positional_arguments.py":                                                0o644,
