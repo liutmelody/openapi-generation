@@ -32,6 +32,7 @@ CASES = [
     ({"future": []}, {}),
     ({"future": {"nested": [None, False, 0, "value"]}}, {}),
     ({"child": {"displayName": "child", "future": True}}, {"child": {"displayName": "child"}}),
+    ({"child": {"displayName": "child", "display_name": "unknown"}}, {"child": {"displayName": "child"}}),
     ({"child": {"displayName": "child", "child": {"displayName": "grandchild", "future": True}}}, {"child": {"displayName": "child", "child": {"displayName": "grandchild"}}}),
     ({"children": [{"displayName": "child", "future": True}]}, {"children": [{"displayName": "child"}]}),
     ({"lookup": {"one": {"displayName": "child", "future": True}}}, {"lookup": {"one": {"displayName": "child"}}}),
@@ -207,9 +208,15 @@ def test_helper_names_reserved_only_on_models():
 def test_model_serialization_methods_keep_consts():
     model = models.FieldEnvelopeInput(label="root", choice=models.TextChoice(text="t"), constant=models.ConstFields())
     expected = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed"}}
-    assert json.loads(utils.marshal_json(model, models.FieldEnvelopeInput)) == expected
+    wire = {"label": "root", "choice": {"kind": "text", "text": "t"}, "constant": {"kind": "fixed", "priority": 1}}
+    assert json.loads(utils.marshal_json(model, models.FieldEnvelopeInput)) == wire
     if not MODEL_SERIALIZATION_METHODS:
         return
     assert model.to_dict() == expected
+    assert model.to_dict(exclude_unset=False) == wire
     assert json.loads(model.to_json()) == expected
     assert models.FieldEnvelopeInput.model_validate(model.to_dict()).to_dict() == expected
+    assert models.FieldEnvelopeInput.model_validate(wire).to_dict() == wire
+    assert models.ConstFields(priority=1).to_dict() == {"kind": "fixed", "priority": 1}
+    assert models.ConstFields(priority=1).to_dict(exclude_defaults=True) == {}
+    assert models.ConstFields(priority=2).to_dict(exclude_defaults=True) == {"priority": 2}

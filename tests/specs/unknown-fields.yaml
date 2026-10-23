@@ -231,7 +231,7 @@ components:
       additionalProperties: false
     ConstFields:
       type: object
-      description: A required const alongside an optional field, so the const is populated by its default rather than by the caller.
+      description: A required const alongside optional fields, one of them with a default, so values are populated by their defaults rather than by the caller.
       required: [kind]
       properties:
         kind:
@@ -239,3 +239,6 @@ components:
           const: fixed
         label:
           type: string
+        priority:
+          type: integer
+          default: 1

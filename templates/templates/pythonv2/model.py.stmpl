@@ -9,6 +9,7 @@
 {{- $hasAdditionalProperties := hasAdditionalPropertiesField $type -}}
 {{- $preserveUnknownFields := .Global.Config.PreserveUnknownFields -}}
 {{- $modelSerializationMethods := .Global.Config.ModelSerializationMethods -}}
+{{- $serializerUsesInfo := or $preserveUnknownFields $modelSerializationMethods -}}
 {{- $outputKey := "k" -}}
 {{- if $modelSerializationMethods}}{{$outputKey = "n if use_field_names else k"}}{{end -}}
 {{- if $hasAdditionalProperties}}{{addImport "pydantic" "ConfigDict"}}{{end -}}
@@ -88,7 +89,7 @@ class {{$className}}(BaseModel):
     {{-   addImport "pydantic" "model_serializer"}}
     {{-   addImport "types" "UNSET_SENTINEL" true}}
     @model_serializer(mode="wrap")
-    def {{sanitizeSerializeMethodName $type}}(self, handler{{if $modelSerializationMethods}}, info{{end}}):
+    def {{sanitizeSerializeMethodName $type}}(self, handler{{if $serializerUsesInfo}}, info{{end}}):
         {{- $nullDefaultFields := templateNullDefaultFieldList $type}}
         {{- $hasNullDefaultField := gt (len $nullDefaultFields) 0}}
         {{- if $hasOptionalField}}
@@ -103,14 +104,27 @@ class {{$className}}(BaseModel):
         serialized = handler(self)
         m = {}
         {{- if $modelSerializationMethods}}
+        {{-   addImport "types.basemodel" "SERIALIZATION_METHODS_DUMP" true}}
         use_field_names = info.by_alias is False
+        exclude_none = info.exclude_none and isinstance(info.context, dict) and SERIALIZATION_METHODS_DUMP in info.context
         {{- end}}
 
         for n, f in type(self).model_fields.items():
             k = f.alias or n
+            {{- if $serializerUsesInfo}}
+            key = k if info.by_alias else n
+            {{- end}}
+            {{- if $modelSerializationMethods}}
+            if key not in serialized and (info.exclude_defaults or exclude_none):
+                continue
+            {{- end}}
+            {{- if $serializerUsesInfo}}
+            val = serialized.pop(key, None)
+            {{- else}}
             val = serialized.get(k, serialized.get(n))
-            {{- if or $hasAdditionalProperties $preserveUnknownFields}}
+            {{-   if $hasAdditionalProperties}}
             serialized.pop(k, serialized.pop(n, None))
+            {{-   end}}
             {{- end}}
 
             {{- if and $hasOptionalField $hasNullableField}}
