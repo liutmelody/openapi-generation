@@ -49,6 +49,9 @@ func {{$initFuncName}}(parent *cobra.Command) error {
     {{- if and $cliOp $cliOp.OutcomeJSON}}
     parent.Annotations["speakeasy_outcome"] = "{{escapeGoString $cliOp.OutcomeJSON}}"
     {{- end}}
+    {{- if and $cliOp $cliOp.ContinuationJSON}}
+    parent.Annotations["speakeasy_continuation"] = "{{escapeGoString $cliOp.ContinuationJSON}}"
+    {{- end}}
     {{- if or $hasSecurity $op.Request (hasPagination $op) (hasBinaryResponse $op) (and $cliOp $cliOp.Flags)}}
     cmd := parent // register flags on the parent
     {{- end}}
@@ -78,6 +81,9 @@ func {{$initFuncName}}(parent *cobra.Command) error {
             {{- end}}
             {{- if and $cliOp $cliOp.OutcomeJSON}}
             "speakeasy_outcome": "{{escapeGoString $cliOp.OutcomeJSON}}",
+            {{- end}}
+            {{- if and $cliOp $cliOp.ContinuationJSON}}
+            "speakeasy_continuation": "{{escapeGoString $cliOp.ContinuationJSON}}",
             {{- end}}
         },
     }
@@ -118,6 +124,10 @@ func {{$initFuncName}}(parent *cobra.Command) error {
     {{- if hasPagination $op}}
     cmd.Flags().BoolP("all", "a", false, "Automatically paginate and fetch all results (streams NDJSON for JSON output)")
     cmd.Flags().Int("max-pages", 0, "Maximum number of pages to fetch when using --all (0 = no limit)")
+    {{- end}}
+    {{- if and $cliOp $cliOp.ContinuationJSON}}
+    cmd.Flags().Bool("auto-continue", {{$cliOp.ContinuationDefault}}, "Keep sending the request while the response asks to continue, and combine the responses")
+    cmd.Flags().Int("max-continuations", {{$cliOp.ContinuationMaxHops}}, "Maximum number of responses to request when continuing automatically")
     {{- end}}
     {{- if hasBinaryResponse $op}}
     cmd.Flags().String("output-file", "", "Save the response body to a file path (recommended for binary/file responses)")
@@ -342,6 +352,27 @@ func {{$runFuncName}}(cmd *cobra.Command, args []string) error {
     {{- if and (not (hasResponseTransform $op)) (not (hasBinaryResponse $op))}}
     if output.WantsRawJSON(cmd) {
         sdkOpts = append(sdkOpts, operations.WithSkipDeserialization())
+    }
+    {{- end}}
+    {{- if and $op.Request (operationHasContinuation $op)}}
+    if output.ContinuationActive(cmd) {
+        hop := func() (interface{}, error) {
+            {{- if not (or (hasStreamingResponse $op) (operationHasDeferredBody $op))}}
+            stopProgress := output.StartRequestProgress(cmd)
+            defer stopProgress()
+            {{- end}}
+            res, err := s{{.Local.SubSDKAccessor}}.{{sanitizeMethodName $op}}({{templateSDKCallArgs $op $reqObjName}})
+            if err != nil {
+                return nil, err
+            }
+            return res, nil
+        }
+        {{- if hasStreamingResponse $op}}
+        if !client.IsDryRun(cmd) {
+            return output.ContinuationStream(cmd, &{{$reqObjName}}, hop, "{{getStreamingFieldName $op}}")
+        }
+        {{- end}}
+        return output.ContinuationResult(cmd, &{{$reqObjName}}, hop)
     }
     {{- end}}
     {{- if hasStreamingResponse $op}}

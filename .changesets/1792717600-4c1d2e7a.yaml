@@ -1,0 +1,10 @@
+id: 1792717600-4c1d2e7a
+features:
+    - cliCommands
+targets:
+    - cli
+type: feat
+bump: minor
+description: declare a continuation recipe so a command re-sends its request with resume values from the response while output.outcome classifies the response state as continue, combining the responses (merge arrays, sum numbers) or streaming every response as one output, with --auto-continue and --max-continuations flags and CLI_CONTINUATION_LIMIT when the hop limit is reached
+author: TristanSpeakEasy
+date: "2026-10-23"

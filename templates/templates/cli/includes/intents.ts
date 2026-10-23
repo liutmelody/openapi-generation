@@ -137,6 +137,9 @@ interface IntentCmdCtx {
   AsyncFailureHint: string;
   StreamMetadataJSON: string;
   OutcomeJSON: string; // terminal-state table carried via cobra annotation ("" = none)
+  ContinuationJSON: string; // continuation recipe carried via cobra annotation ("" = none)
+  ContinuationDefault: boolean;
+  ContinuationMaxHops: number;
   StreamSelect: string; // RFC 6901 pointer of output.stream.select ("" = none)
   StreamToggle: { Name: string; Key: string } | null;
   StreamKind: string; // "sse" | "jsonl" | "" — how the backing operation streams
@@ -203,6 +206,9 @@ interface CLIOperationCtx {
   OperationID: string;
   StreamMetadataJSON: string;
   OutcomeJSON: string;
+  ContinuationJSON: string;
+  ContinuationDefault: boolean;
+  ContinuationMaxHops: number;
   StreamSelect: string;
   Flags: CLIOperationFlagCtx[];
   BodyFlags: string[];
@@ -1338,6 +1344,9 @@ function collectIntentManifest(): IntentManifestCtx {
       StreamSelect: cmd.Output?.Stream?.Pointer || "",
       StreamMetadataJSON: streamMetadataJSON(cmd.Output?.Stream?.Metadata),
       OutcomeJSON: outcomeJSON(cmd.Output?.Outcome),
+      ContinuationJSON: continuationJSON(cmd.Continuation, found.op),
+      ContinuationDefault: cmd.Continuation?.Default ?? false,
+      ContinuationMaxHops: cmd.Continuation?.MaxHops ?? 0,
       StreamToggle:
         !dispatch && intentStreamKind(found.op).kind
           ? intentDefaultOnStreamToggle(flags, presetJSON)
@@ -1401,6 +1410,64 @@ function outcomeJSON(outcome: CLICommandOutcome | null | undefined): string {
       : {}),
   });
 }
+
+// continuationJSON serializes a continuation recipe for the runtime. The
+// linker cannot see pagination, so the paginated-operation conflict is
+// rejected here.
+function continuationJSON(
+  recipe: CLICommandContinuation | null | undefined,
+  op: Operation,
+): string {
+  if (!recipe) {
+    return "";
+  }
+  if (hasPagination(op)) {
+    throw new Error(
+      `x-speakeasy-cli-commands: operation "${op.OriginalID}" is paginated; continuation cannot be combined with pagination in v1`,
+    );
+  }
+  return JSON.stringify({
+    bind: recipe.Bind.map((binding) => ({
+      ...(binding.Pointer ? { pointer: binding.Pointer } : {}),
+      ...(binding.StreamPointers?.length
+        ? { streamPointers: binding.StreamPointers }
+        : {}),
+      to: binding.To,
+      toPath: binding.ToPath,
+      ...(binding.Optional ? { optional: true } : {}),
+      ...(binding.Flag ? { flag: binding.Flag } : {}),
+    })),
+    ...(recipe.Merge?.length ? { merge: recipe.Merge } : {}),
+    ...(recipe.Sum?.length ? { sum: recipe.Sum } : {}),
+    maxHops: recipe.MaxHops,
+  });
+}
+
+function hasCliContinuations(): boolean {
+  const manifest = context.Global.AST.CLICommands as any;
+  return Boolean(
+    manifest?.Commands?.some((c: any) => c.Continuation) ||
+      manifest?.Operations?.some((o: any) => o.Continuation),
+  );
+}
+registerTemplateFunc("hasCliContinuations", hasCliContinuations);
+
+// Whether any command or operation entry runs a continuation over op, so the
+// operation's run function needs the hop driver.
+function operationHasContinuation(op: Operation): boolean {
+  const manifest = context.Global.AST.CLICommands as any;
+  const matches = (id: string | undefined) =>
+    id === op.OriginalID || id === op.GetID();
+  return Boolean(
+    manifest?.Commands?.some(
+      (c: any) => c.Continuation && matches(c.Continuation.OperationID),
+    ) ||
+      manifest?.Operations?.some(
+        (o: any) => o.Continuation && matches(o.OperationID),
+      ),
+  );
+}
+registerTemplateFunc("operationHasContinuation", operationHasContinuation);
 
 function streamMetadataJSON(
   fields: CLICommandStreamMetadata[] | null | undefined,
@@ -1613,6 +1680,9 @@ function getCLIOperationCtx(op: Operation): CLIOperationCtx | null {
     StreamSelect: declared.Output?.Stream?.Pointer || "",
     StreamMetadataJSON: streamMetadataJSON(declared.Output?.Stream?.Metadata),
     OutcomeJSON: outcomeJSON(declared.Output?.Outcome),
+    ContinuationJSON: continuationJSON(declared.Continuation, op),
+    ContinuationDefault: declared.Continuation?.Default ?? false,
+    ContinuationMaxHops: declared.Continuation?.MaxHops ?? 0,
     Flags: flags,
     BodyFlags: bodyFlags,
     CanonicalBodyFlag: bodyFlags[bodyFlags.length - 1] || "",

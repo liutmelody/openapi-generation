@@ -74,6 +74,9 @@ func InitIntent{{$c.FuncName}}(parent *cobra.Command) error {
 			{{- if $c.OutcomeJSON}}
 			"speakeasy_outcome": "{{escapeGoString $c.OutcomeJSON}}",
 			{{- end}}
+			{{- if $c.ContinuationJSON}}
+			"speakeasy_continuation": "{{escapeGoString $c.ContinuationJSON}}",
+			{{- end}}
 			{{- if $c.StreamSelect}}
 			"speakeasy_stream_select": "{{escapeGoString $c.StreamSelect}}",
 			{{- if $c.StreamMetadataJSON}}
@@ -156,6 +159,10 @@ func InitIntent{{$c.FuncName}}(parent *cobra.Command) error {
 		Kind: "string",
 	})
 	cmd.Flags().Bool("raw-response", false, "Print the raw API response instead of writing the {{$c.ArtifactKind}} to a file")
+	{{- end}}
+	{{- if $c.ContinuationJSON}}
+	cmd.Flags().Bool("auto-continue", {{$c.ContinuationDefault}}, "Keep sending the request while the response asks to continue, and combine the responses")
+	cmd.Flags().Int("max-continuations", {{$c.ContinuationMaxHops}}, "Maximum number of responses to request when continuing automatically")
 	{{- end}}
 	{{- if $c.AsyncJSON}}
 	cmd.Flags().String("resume", "", "Resume polling an existing operation by ID instead of creating one")

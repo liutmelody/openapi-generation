@@ -2418,6 +2418,7 @@ declare global {
     Flags: CLICommandInput[] | null;
     Presets: CLICommandPreset[] | null;
     Async?: CLICommandAsync | null;
+    Continuation?: CLICommandContinuation | null;
     Output: CLICommandOutput | null;
     Examples: CLICommandExample[] | null;
     Help?: CLICommandHelp | null;
@@ -2429,10 +2430,42 @@ declare global {
     }[];
   };
 
+  type CLICommandContinuationBinding = {
+    From?: string;
+    Pointer?: string;
+    StreamFrom?: string[];
+    StreamPointers?: string[];
+    To: string;
+    ToPointer: string;
+    ToPath: string[];
+    Optional?: boolean;
+    Flag?: string;
+  };
+
+  type CLICommandContinuation = {
+    Bind: CLICommandContinuationBinding[];
+    MergeFrom?: string[];
+    Merge?: string[];
+    SumFrom?: string[];
+    Sum?: string[];
+    MaxHops: number;
+    Default: boolean;
+    OperationID?: string;
+  };
+
+  type CLIOperationDeclaration = {
+    OperationID: string;
+    Output?: CLICommandOutput | null;
+    Flags?: CLICommandInput[] | null;
+    Continuation?: CLICommandContinuation | null;
+    BodyRequired?: boolean;
+  };
+
   type CLICommandManifest = {
     Version: number;
     Categories?: string[];
     Commands: CLICommand[];
+    Operations?: CLIOperationDeclaration[] | null;
   };
 
   type CLIErrorRule = {

@@ -1,0 +1,371 @@
+package tests
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"{{getGolangPackage}}/internal/clierrors"
+)
+
+type continuationReply struct {
+	status int
+	body   string
+	events []string
+}
+
+type continuationServer struct {
+	*httptest.Server
+	mu       sync.Mutex
+	requests []map[string]interface{}
+}
+
+// newContinuationServer answers the nth request (0-based) with reply(n) and
+// records every request body so a test can check what each hop sent.
+func newContinuationServer(t *testing.T, reply func(n int) continuationReply) *continuationServer {
+	t.Helper()
+	srv := &continuationServer{}
+	srv.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var body map[string]interface{}
+		if err := json.Unmarshal(raw, &body); err != nil {
+			http.Error(w, "request body is not a JSON object", http.StatusBadRequest)
+			return
+		}
+		srv.mu.Lock()
+		n := len(srv.requests)
+		srv.requests = append(srv.requests, body)
+		srv.mu.Unlock()
+
+		answer := reply(n)
+		if answer.status != 0 && answer.status != http.StatusOK {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(answer.status)
+			fmt.Fprint(w, answer.body)
+			return
+		}
+		switch r.URL.Path {
+		case "/continuation/compose":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, answer.body)
+		case "/continuation/compose/stream":
+			w.Header().Set("Content-Type", "text/event-stream")
+			for _, event := range answer.events {
+				fmt.Fprintf(w, "data: %s\n\n", event)
+			}
+			fmt.Fprint(w, "data: [DONE]\n\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func (s *continuationServer) sent() []map[string]interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]map[string]interface{}(nil), s.requests...)
+}
+
+func scriptedReplies(replies ...continuationReply) func(n int) continuationReply {
+	return func(n int) continuationReply {
+		if n < len(replies) {
+			return replies[n]
+		}
+		return continuationReply{status: http.StatusInternalServerError, body: `{"message":"unexpected extra request"}`}
+	}
+}
+
+func widgetJSON(id, status, token, step string, inputUnits, outputUnits int) string {
+	fields := []string{fmt.Sprintf(`"status":%q`, status)}
+	if id != "" {
+		fields = append(fields, fmt.Sprintf(`"id":%q`, id))
+	}
+	if token != "" {
+		fields = append(fields, fmt.Sprintf(`"resumeToken":%q`, token))
+	}
+	if step != "" {
+		fields = append(fields, fmt.Sprintf(`"steps":[{"text":%q}]`, step))
+	}
+	if inputUnits != 0 || outputUnits != 0 {
+		fields = append(fields, fmt.Sprintf(`"usage":{"inputUnits":%d,"outputUnits":%d}`, inputUnits, outputUnits))
+	}
+	if status == "failed" {
+		fields = append(fields, `"error":{"code":"exhausted","message":"budget exhausted"}`)
+	}
+	return "{" + strings.Join(fields, ",") + "}"
+}
+
+func discreteReply(id, status, token, step string, inputUnits, outputUnits int) continuationReply {
+	return continuationReply{body: widgetJSON(id, status, token, step, inputUnits, outputUnits)}
+}
+
+func deltaEvent(text, token string) string {
+	if token == "" {
+		return fmt.Sprintf(`{"event_type":"delta","delta":{"text":%q}}`, text)
+	}
+	return fmt.Sprintf(`{"event_type":"delta","resumeToken":%q,"delta":{"text":%q}}`, token, text)
+}
+
+func widgetEvent(id, status, token string) string {
+	return fmt.Sprintf(`{"event_type":"done","widget":%s}`, widgetJSON(id, status, token, "", 0, 0))
+}
+
+func composeArgs(extra ...string) []string {
+	return append([]string{"compose", "hello"}, extra...)
+}
+
+func decodeJSONObject(t *testing.T, raw string) map[string]interface{} {
+	t.Helper()
+	var payload map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(raw), &payload), raw)
+	return payload
+}
+
+func stepTexts(payload map[string]interface{}) []string {
+	var texts []string
+	steps, _ := payload["steps"].([]interface{})
+	for _, step := range steps {
+		if object, ok := step.(map[string]interface{}); ok {
+			text, _ := object["text"].(string)
+			texts = append(texts, text)
+		}
+	}
+	return texts
+}
+
+func TestContinuationDiscrete(t *testing.T) {
+	threeHops := scriptedReplies(
+		discreteReply("w1", "more_required", "tok1", "a", 1, 2),
+		discreteReply("w2", "more_required", "tok2", "b", 3, 4),
+		discreteReply("w3", "completed", "", "c", 5, 6),
+	)
+
+	t.Run("single response", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(discreteReply("w1", "completed", "", "a", 1, 2)))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		sent := srv.sent()
+		require.Len(t, sent, 1)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello"}, sent[0])
+		payload := decodeJSONObject(t, h.GetStdout())
+		assert.Equal(t, "completed", payload["status"])
+		assert.Equal(t, []string{"a"}, stepTexts(payload))
+		assert.Empty(t, h.GetStderr())
+	})
+
+	t.Run("three responses are combined", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		sent := srv.sent()
+		require.Len(t, sent, 3)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello"}, sent[0])
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok1", "previousId": "w1"}, sent[1])
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok2", "previousId": "w2"}, sent[2])
+
+		payload := decodeJSONObject(t, h.GetStdout())
+		assert.Equal(t, "w3", payload["id"], "fields other than merge and sum come from the last response")
+		assert.Equal(t, "completed", payload["status"])
+		assert.Equal(t, []string{"a", "b", "c"}, stepTexts(payload))
+		assert.Equal(t, map[string]interface{}{"inputUnits": float64(9), "outputUnits": float64(12)}, payload["usage"])
+		assert.Empty(t, h.GetStderr())
+	})
+
+	t.Run("three responses report the hop count", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, composeArgs()...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Contains(t, h.GetStderr(), "Continued across 3 responses.")
+		assert.NotContains(t, h.GetStderr(), "To continue")
+	})
+
+	t.Run("responses without an id omit the optional binding", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			discreteReply("", "more_required", "tok1", "a", 0, 0),
+			discreteReply("", "completed", "", "b", 0, 0),
+		))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		sent := srv.sent()
+		require.Len(t, sent, 2)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok1"}, sent[1])
+	})
+
+	t.Run("resume values from flags reach the first request", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(discreteReply("w2", "completed", "", "b", 0, 0)))
+		h, err := runOutcome(t, srv.URL, composeArgs("--resume-token", "tok9", "--previous-id", "w9", "--output-format", "json")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		sent := srv.sent()
+		require.Len(t, sent, 1)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok9", "previousId": "w9"}, sent[0])
+	})
+
+	t.Run("a resumable success prints how to continue", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(discreteReply("w1", "budget_reached", "tok1", "a", 0, 0)))
+		h, err := runOutcome(t, srv.URL, composeArgs()...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 1, "a success state never continues automatically")
+		assert.Contains(t, h.GetStderr(), `To continue, re-run the same command with --resume-token "tok1" --previous-id "w1".`)
+	})
+
+	t.Run("auto-continue disabled stops after the first response", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, composeArgs("--auto-continue=false")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 1)
+		assert.Contains(t, h.GetStderr(), `--resume-token "tok1"`)
+	})
+
+	t.Run("a failure after continuing carries the hop and resume values", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			discreteReply("w1", "more_required", "tok1", "a", 0, 0),
+			discreteReply("w2", "failed", "tok2", "b", 0, 0),
+		))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json")...)
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 2)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+		assert.Equal(t, "failed", envelope["state"])
+		assert.Contains(t, envelope["message"], "budget exhausted")
+		assert.Equal(t, float64(2), envelope["hops"])
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok2", "$.previousId": "w2"}, envelope["continuation"])
+		assert.Equal(t, []string{"a", "b"}, stepTexts(decodeJSONObject(t, h.GetStdout())))
+	})
+
+	t.Run("a continue state without a resume token stops with a warning", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(discreteReply("w1", "more_required", "", "a", 0, 0)))
+		h, err := runOutcome(t, srv.URL, composeArgs()...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 1)
+		assert.Contains(t, h.GetStderr(), `reported state "more_required" but carried no $.resumeToken`)
+	})
+
+	t.Run("the hop limit stops an endless continuation", func(t *testing.T) {
+		srv := newContinuationServer(t, func(n int) continuationReply {
+			return discreteReply(fmt.Sprintf("w%d", n+1), "more_required", fmt.Sprintf("tok%d", n+1), "x", 0, 0)
+		})
+		h, err := runOutcome(t, srv.URL, composeArgs("--max-continuations", "3", "--output-format", "json")...)
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 3)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_CONTINUATION_LIMIT", envelope["error_reason"])
+		assert.Equal(t, "runtime_error", envelope["error_type"])
+		assert.Equal(t, float64(3), envelope["hops"])
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok3", "$.previousId": "w3"}, envelope["continuation"])
+		assert.Contains(t, fmt.Sprint(envelope["hints"]), `--resume-token "tok3"`)
+		assert.Len(t, stepTexts(decodeJSONObject(t, h.GetStdout())), 3)
+	})
+
+	t.Run("max-continuations must be positive", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, composeArgs("--max-continuations", "0")...)
+		require.Equal(t, clierrors.ExitUsage, clierrors.ExitCode(err), h.GetStderr())
+		assert.Empty(t, srv.sent())
+	})
+
+	t.Run("an error on a later hop carries the last resume values", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			discreteReply("w1", "more_required", "tok1", "a", 0, 0),
+			continuationReply{status: http.StatusInternalServerError, body: `{"message":"upstream unavailable"}`},
+		))
+		h, err := runOutcome(t, srv.URL, composeArgs("--output-format", "json", "--no-retries")...)
+		require.NotEqual(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 2)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "server_error", envelope["error_type"])
+		assert.Equal(t, float64(1), envelope["hops"])
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok1", "$.previousId": "w1"}, envelope["continuation"])
+	})
+
+	t.Run("dry run sends nothing", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, composeArgs("--dry-run")...)
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Empty(t, srv.sent())
+	})
+}
+
+func TestContinuationStream(t *testing.T) {
+	threeHops := scriptedReplies(
+		continuationReply{events: []string{deltaEvent("one ", "tok1"), widgetEvent("w1", "more_required", "")}},
+		continuationReply{events: []string{deltaEvent("two ", ""), widgetEvent("w2", "more_required", "tok2")}},
+		continuationReply{events: []string{deltaEvent("three", ""), widgetEvent("w3", "completed", "")}},
+	)
+
+	t.Run("three responses stream as one output", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello")
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Equal(t, "one two three\n", h.GetStdout())
+		sent := srv.sent()
+		require.Len(t, sent, 3)
+		assert.Equal(t, map[string]interface{}{"prompt": "hello"}, sent[0])
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok1", "previousId": "w1"}, sent[1])
+		assert.Equal(t, map[string]interface{}{"prompt": "hello", "resumeToken": "tok2", "previousId": "w2"}, sent[2])
+		assert.Contains(t, h.GetStderr(), "Continued across 3 responses.")
+	})
+
+	t.Run("json output carries every event of every response", func(t *testing.T) {
+		srv := newContinuationServer(t, threeHops)
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		events := strings.Split(strings.TrimSpace(h.GetStdout()), "\n")
+		require.Len(t, events, 6, h.GetStdout())
+		assert.Contains(t, events[5], `"completed"`)
+	})
+
+	t.Run("a stream that ends after a checkpoint is a connection error", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(continuationReply{events: []string{deltaEvent("one", "tok1")}}))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 1)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_CONNECTION", envelope["error_reason"])
+		assert.Equal(t, float64(1), envelope["hops"])
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok1"}, envelope["continuation"])
+	})
+
+	t.Run("a stream that ends without a checkpoint is left as is", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(continuationReply{events: []string{deltaEvent("one", "")}}))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello")
+		require.Equal(t, clierrors.ExitOK, clierrors.ExitCode(err), h.GetStderr())
+		assert.Equal(t, "one\n", h.GetStdout())
+		require.Len(t, srv.sent(), 1)
+	})
+
+	t.Run("a failure on a later response", func(t *testing.T) {
+		srv := newContinuationServer(t, scriptedReplies(
+			continuationReply{events: []string{deltaEvent("one ", "tok1"), widgetEvent("w1", "more_required", "")}},
+			continuationReply{events: []string{deltaEvent("two", ""), widgetEvent("w2", "failed", "tok2")}},
+		))
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 2)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_OUTCOME_FAILED", envelope["error_reason"])
+		assert.Equal(t, float64(2), envelope["hops"])
+		assert.Equal(t, map[string]interface{}{"$.resumeToken": "tok2", "$.previousId": "w2"}, envelope["continuation"])
+	})
+
+	t.Run("the declared hop limit stops an endless stream", func(t *testing.T) {
+		srv := newContinuationServer(t, func(n int) continuationReply {
+			return continuationReply{events: []string{deltaEvent("x", fmt.Sprintf("tok%d", n+1)), widgetEvent("", "more_required", "")}}
+		})
+		h, err := runOutcome(t, srv.URL, "compose-stream", "hello", "--output-format", "json")
+		require.Equal(t, clierrors.ExitRuntime, clierrors.ExitCode(err), h.GetStderr())
+		require.Len(t, srv.sent(), 8)
+		envelope := outcomeErrorEnvelope(t, h.GetStderr())
+		assert.Equal(t, "CLI_CONTINUATION_LIMIT", envelope["error_reason"])
+		assert.Equal(t, float64(8), envelope["hops"])
+	})
+}

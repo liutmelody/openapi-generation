@@ -145,7 +145,80 @@ actions:
                 incomplete: success
                 failed: failure
                 cancelled: failure
+        continuationCompose:
+          output:
+            outcome:
+              statePointer: $.status
+              errorPointer: $.error
+              states:
+                more_required: continue
+                budget_reached: success
+                completed: success
+                failed: failure
+          continuation:
+            bind:
+              - from: $.resumeToken
+                to: $.resumeToken
+              - from: $.id
+                to: $.previousId
+                optional: true
+            merge: $.steps
+            sum: [$.usage.inputUnits, $.usage.outputUnits]
       commands:
+        compose:
+          category: Create
+          summary: Compose a widget, continuing automatically while the response asks for more (continuation inherited from the operation entry)
+          op: continuationCompose
+          args:
+            prompt:
+              to: $.prompt
+              variadic: true
+              summary: Prompt text
+          flags:
+            scenario:
+              to: $.scenario
+              summary: Test-service scenario to run
+            resume-token:
+              to: $.resumeToken
+              summary: Resume token from a previous response
+            previous-id:
+              to: $.previousId
+              summary: ID of the response that stopped
+        compose-stream:
+          category: Create
+          summary: Stream a widget composition across continued responses
+          op: continuationStream
+          args:
+            prompt:
+              to: $.prompt
+              variadic: true
+              summary: Prompt text
+          flags:
+            scenario:
+              to: $.scenario
+              summary: Test-service scenario to run
+            resume-token:
+              to: $.resumeToken
+              summary: Resume token from a previous response
+          output:
+            stream:
+              select: $.data.delta.text
+            outcome:
+              streamStatePointer: $.data.widget.status
+              streamErrorPointer: $.data.widget.error
+              states:
+                more_required: continue
+                budget_reached: success
+                completed: success
+                failed: failure
+          continuation:
+            bind:
+              - streamFrom: [$.data.resumeToken, $.data.widget.resumeToken]
+                to: $.resumeToken
+              - streamFrom: $.data.widget.id
+                to: $.previousId
+                optional: true
+            maxHops: 8
         outcome-check:
           category: Create
           summary: Fetch an interaction and fail when it ended in a failure state (output.outcome inherited from the operation entry)
@@ -678,6 +751,47 @@ actions:
                 x-speakeasy-sse-sentinel: "[DONE]"
                 schema:
                   $ref: '#/components/schemas/outcomeStreamEvent'
+    /continuation/compose:
+      post:
+        operationId: continuationCompose
+        tags: [continuation]
+        description: Each response returns only its own steps and usage, and reports more_required with a resume token while the composition is unfinished, so the CLI re-sends the same request with the resume values (continuation) and combines the responses.
+        servers:
+        - url: http://localhost:35456
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/continuationComposeRequest'
+        responses:
+          "200":
+            description: One response of the composition.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/continuationWidget'
+    /continuation/compose/stream:
+      post:
+        operationId: continuationStream
+        tags: [continuation]
+        description: SSE variant of the continued composition; the resume token arrives in stream events and the closing event carries the response's status.
+        servers:
+        - url: http://localhost:35456
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/continuationComposeRequest'
+        responses:
+          "200":
+            description: Streamed composition events.
+            content:
+              text/event-stream:
+                x-speakeasy-sse-sentinel: "[DONE]"
+                schema:
+                  $ref: '#/components/schemas/continuationStreamEvent'
 - target: $.components.schemas
   update:
     outcomeInteraction:
@@ -719,6 +833,63 @@ actions:
           type: array
           items:
             $ref: '#/components/schemas/outcomeError'
+    continuationComposeRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+        scenario:
+          type: string
+        resumeToken:
+          type: string
+        previousId:
+          type: string
+    continuationWidget:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [more_required, budget_reached, completed, failed]
+        resumeToken:
+          type: string
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+        usage:
+          type: object
+          properties:
+            inputUnits:
+              type: integer
+            outputUnits:
+              type: integer
+        error:
+          $ref: '#/components/schemas/outcomeError'
+    continuationStreamEvent:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            event_type:
+              type: string
+            resumeToken:
+              type: string
+            delta:
+              type: object
+              properties:
+                text:
+                  type: string
+            widget:
+              $ref: '#/components/schemas/continuationWidget'
     outcomeStreamEvent:
       type: object
       required: [data]
