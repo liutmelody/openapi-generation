@@ -6,6 +6,7 @@
 {{- addImport "internal/config" true -}}
 {{- addImport "net" -}}
 {{- addImport "net/http" -}}
+{{- addImport "net/url" -}}
 {{- addImport "strings" -}}
 {{- addImport "sync" -}}
 {{- addImport "time" -}}
@@ -106,10 +107,24 @@ func SameOriginRedirect(req *http.Request, via []*http.Request) error {
         return fmt.Errorf("stopped after 10 redirects")
     }
     from := via[0].URL
-    if req.URL.Scheme != from.Scheme || !strings.EqualFold(req.URL.Host, from.Host) {
+    if urlOrigin(req.URL) != urlOrigin(from) {
         return fmt.Errorf("refusing to follow a redirect from %s://%s to %s://%s: credentials are only sent to the configured server", from.Scheme, from.Host, req.URL.Scheme, req.URL.Host)
     }
     return nil
+}
+
+func urlOrigin(u *url.URL) string {
+    scheme := strings.ToLower(u.Scheme)
+    port := u.Port()
+    if port == "" {
+        switch scheme {
+        case "https":
+            port = "443"
+        case "http":
+            port = "80"
+        }
+    }
+    return scheme + "://" + net.JoinHostPort(strings.ToLower(u.Hostname()), port)
 }
 
 func newPhaseBoundedTransport(cmd *cobra.Command) http.RoundTripper {

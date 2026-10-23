@@ -56,3 +56,33 @@ func TestSameOriginRedirect(t *testing.T) {
 		t.Fatalf("credential header reached the redirect target: %q", leakedKey)
 	}
 }
+
+func TestSameOriginRedirectOrigins(t *testing.T) {
+	for _, tc := range []struct {
+		from, to string
+		allowed  bool
+	}{
+		{"https://api.example.com/a", "https://api.example.com/b", true},
+		{"https://api.example.com/a", "https://API.example.com:443/b", true},
+		{"http://api.example.com:80/a", "http://api.example.com/b", true},
+		{"https://api.example.com/a", "http://api.example.com/b", false},
+		{"https://api.example.com/a", "https://api.example.com:8443/b", false},
+		{"https://api.example.com/a", "https://other.example.com/b", false},
+	} {
+		from, err := http.NewRequest(http.MethodGet, tc.from, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := http.NewRequest(http.MethodGet, tc.to, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = SameOriginRedirect(to, []*http.Request{from})
+		if tc.allowed && err != nil {
+			t.Errorf("%s -> %s: unexpected error %v", tc.from, tc.to, err)
+		}
+		if !tc.allowed && err == nil {
+			t.Errorf("%s -> %s: redirect was allowed", tc.from, tc.to)
+		}
+	}
+}
