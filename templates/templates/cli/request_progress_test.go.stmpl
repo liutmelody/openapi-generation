@@ -123,6 +123,7 @@ func TestRequestProgressContextCancellationClears(t *testing.T) {
 	require.True(t, strings.HasSuffix(got, "\r\x1b[2K"), "cancellation must leave the line cleared")
 	stop()
 }
+{{- if anyOperationHasStreaming}}
 
 type progressTestStream struct {
 	items []string
@@ -174,6 +175,7 @@ func TestRequestProgressStreamFallbackClearsBeforeResult(t *testing.T) {
 	require.GreaterOrEqual(t, result, 0)
 	require.Contains(t, got[:result], "\r\x1b[2K")
 }
+{{- end}}
 
 func TestRequestProgressSuppressionFlags(t *testing.T) {
 	for name, set := range map[string]func(*cobra.Command) error{
