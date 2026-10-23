@@ -10,6 +10,7 @@ import (
 	"openapi/internal/flagutil"
 	"openapi/internal/forms"
 	"openapi/internal/interactive"
+	"openapi/internal/output"
 )
 
 // initAuthCmd registers the auth command group with login, whoami, and logout subcommands.
@@ -431,6 +432,12 @@ func runAuthLoginCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
+	if output.IsMachineMode(cmd) {
+		return output.LocalResult(cmd, map[string]any{
+			"config_file":     config.GetConfigPath(),
+			"keychain_stored": keychainStored,
+		})
+	}
 	out := cmd.OutOrStdout()
 	if keychainStored {
 		fmt.Fprintln(out, "Secret credentials stored in OS keychain")
@@ -492,6 +499,13 @@ func runAuthLogoutCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 
+	if output.IsMachineMode(cmd) {
+		return output.LocalResult(cmd, map[string]any{
+			"config_file":      config.GetConfigPath(),
+			"cleared":          true,
+			"keychain_cleared": config.KeyringAvailable(),
+		})
+	}
 	out := cmd.OutOrStdout()
 	if !config.KeyringAvailable() {
 		fmt.Fprintln(out, "Authentication credentials have been cleared from the config file; the OS keychain was skipped, so credentials stored there (if any) were kept.")

@@ -1,0 +1,10 @@
+id: 1792716414-5d8f721c
+features:
+    - core
+targets:
+    - cli
+type: fix
+bump: patch
+description: configure, auth login and auth logout return a structured result in machine output modes instead of plain text
+author: TristanSpeakEasy
+date: "2026-10-23"

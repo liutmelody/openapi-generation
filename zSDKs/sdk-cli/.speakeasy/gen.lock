@@ -60,13 +60,13 @@ trackedFiles:
   go.mod:
     last_write_checksum: sha1:15ced474cbb1ec803f17960c0b73f10ea969c22a
   internal/cli/auth.go:
-    last_write_checksum: sha1:288aa0138da525e34004083060372df173caeefb
+    last_write_checksum: sha1:ac2cabededc8068cd6066f1c61f1df71e7e70f7a
   internal/cli/binaryandstringupload.go:
     last_write_checksum: sha1:20d8028b7618e73dcf1763372f9145ea325b32b0
   internal/cli/chat.go:
     last_write_checksum: sha1:9a9077f9bd0eb3ef19d36d461243215c50f3442b
   internal/cli/configure.go:
-    last_write_checksum: sha1:ee8e247c4e7da6ebbf9e20bc80bee879f3bc176a
+    last_write_checksum: sha1:e96c0c4af024a3f93fe4a854cce5d3809a9ba448
   internal/cli/createuser.go:
     last_write_checksum: sha1:5b60000059db85dcf4c90f5e67c37b7fff3cf852
   internal/cli/createwithunion.go:

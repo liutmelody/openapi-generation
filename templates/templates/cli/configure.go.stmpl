@@ -171,6 +171,18 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
         return fmt.Errorf("failed to save configuration: %w", err)
     }
 
+    {{- if isAnyInteractiveEnabled}}
+    if output.IsMachineMode(cmd) {
+        result := map[string]any{"config_file": config.GetConfigPath()}
+        {{- if hasSecretCLIFields}}
+        result["keychain_stored"] = keychainStored
+        {{- end}}
+        if len(cleared) > 0 {
+            result["cleared"] = cleared
+        }
+        return output.LocalResult(cmd, result)
+    }
+    {{- end}}
     out{{if isAnyInteractiveEnabled}} :{{end}}= cmd.OutOrStdout()
     {{- if hasSecretCLIFields}}
     if keychainStored {
