@@ -634,9 +634,9 @@ trackedFiles:
   src/speakeasy/new_openapi/models/mcppolicy.py:
     last_write_checksum: sha1:79b406c5b22b34cc7d9b42eed4d5763ed4dffb81
   src/speakeasy/new_openapi/models/metadata.py:
-    last_write_checksum: sha1:2eeb23413ad9d48a9487c62da3f04c7fece235d2
+    last_write_checksum: sha1:0986d143f3fd9ca6db2c01df8d5ebd6c8a23e68c
   src/speakeasy/new_openapi/models/metadataany.py:
-    last_write_checksum: sha1:3befe574e13b0adebf89da691c6ba96c66ad5875
+    last_write_checksum: sha1:99aa26007a11ff5cdf43d07c2ba340c54227f0c4
   src/speakeasy/new_openapi/models/namespaceconflicttest.py:
     last_write_checksum: sha1:3c086e737bdd18289b7b56a14e9813070773cafa
   src/speakeasy/new_openapi/models/namespacetypestest.py:

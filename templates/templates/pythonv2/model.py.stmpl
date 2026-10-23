@@ -24,7 +24,16 @@ class {{$className}}(BaseModel):
     {{- end}}
     {{- if $hasAdditionalProperties}}
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
-    __pydantic_extra__:  {{sanitizeAdditionalPropertiesField (getAdditionalPropertiesField $type) $usageLocation $local}}
+    {{- $additionalPropertiesType := sanitizeAdditionalPropertiesField (getAdditionalPropertiesField $type) $usageLocation $local}}
+    {{- addImport "typing" "TYPE_CHECKING"}}
+    {{- addImport "pydantic" ""}}
+    {{- /* A runtime Field default shadows BaseModel's __pydantic_extra__ slot, so
+           nested union serialization can select Unset and drop the value. Keep the
+           default for type checkers only so that constructors stay valid. */}}
+    if TYPE_CHECKING:
+        __pydantic_extra__: {{$additionalPropertiesType}} = pydantic.Field(init=False)
+    else:
+        __pydantic_extra__: {{$additionalPropertiesType}}
     {{- end}}
     
     {{- if $pagination }}

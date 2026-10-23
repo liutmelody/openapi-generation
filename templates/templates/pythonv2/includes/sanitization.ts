@@ -1718,8 +1718,6 @@ function sanitizeAdditionalPropertiesField(
   }
 
   addImport("typing", "Dict");
-  // A Field default shadows BaseModel's __pydantic_extra__ slot. Nested union
-  // serialization then treats it as an unexpected field and can select Unset.
   return `Dict[str, ${sanitizePydanticType(
     typeDefToFieldDef(
       field.Type.ItemType,

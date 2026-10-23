@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from ..types import BaseModel, UNSET_SENTINEL
+import pydantic
 from pydantic import ConfigDict, model_serializer
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from typing_extensions import NotRequired, TypedDict
 
 
@@ -19,7 +20,10 @@ class MetadataAny(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True, arbitrary_types_allowed=True, extra="allow"
     )
-    __pydantic_extra__: Dict[str, Any]
+    if TYPE_CHECKING:
+        __pydantic_extra__: Dict[str, Any] = pydantic.Field(init=False)
+    else:
+        __pydantic_extra__: Dict[str, Any]
 
     notes: Optional[str] = None
 
