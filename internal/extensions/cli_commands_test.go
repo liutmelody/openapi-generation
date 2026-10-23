@@ -5423,3 +5423,91 @@ operations:
 	assert.Contains(t, warnings[1], "output.stream.metadata.select")
 	assert.Contains(t, warnings[1], "could not be verified")
 }
+
+func TestCLICommands_FlagImplies(t *testing.T) {
+	manifest, _, err := decodeCLITest(t, `
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    flags:
+      background: {to: $.background, implies: {$.priority: 1}}
+`)
+	require.NoError(t, err)
+	background := manifest.Commands[0].Flags[0]
+	assert.Equal(t, "bool", background.Type)
+	require.Len(t, background.Implies, 1)
+	assert.Equal(t, "/priority", background.Implies[0].Bind.Pointer)
+	assert.EqualValues(t, 1, background.Implies[0].Value)
+
+	streamed := strings.ReplaceAll(cliRouteDispatchSpec,
+		"        background:\n          type: boolean\n          description: Run in the background.\n",
+		"        background:\n          type: boolean\n          description: Run in the background.\n        stream:\n          type: boolean\n          default: true\n")
+	dispatch := strings.Replace(cliRouteDispatchManifest,
+		"      background: {to: $.background}\n",
+		"      background: {to: $.background, implies: {$.stream: false}}\n", 1)
+	manifest, err = decodeCLITestSpec(t, streamed, dispatch)
+	require.NoError(t, err)
+	flag := cliFindDispatchFlag(manifest.Commands[0].Flags, "background")
+	require.NotNil(t, flag)
+	require.Len(t, flag.Implies, 1)
+	assert.Equal(t, CLICommandPreset{Bind: CLICommandBind{In: "body", Pointer: "/stream", Mode: "set"}, Value: false}, flag.Implies[0])
+
+	_, err = decodeCLITestSpec(t, cliRouteDispatchSpec, strings.Replace(cliRouteDispatchManifest,
+		"      background: {to: $.background}\n",
+		"      background: {to: $.background, implies: {$.output_modes: sync}}\n", 1))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `implied property /output_modes is not declared by`)
+
+	for _, tc := range []struct{ manifest, want string }{
+		{`
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    args:
+      prompt: {to: $.input, type: string, variadic: true, implies: {$.priority: 1}}
+`, `implies is only valid on flags`},
+		{`
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    flags:
+      engine: {to: $.engine, implies: {$.priority: 1}}
+`, `implies requires a bool flag`},
+		{`
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    flags:
+      background: {to: $.background, implies: {$.background: false}}
+`, `implies cannot set the flag's own property /background`},
+		{`
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    flags:
+      background: {to: $.background, implies: {$.priority: fast}}
+`, `not an integer`},
+		{`
+version: 1
+commands:
+  render:
+    op: CreateTask#CreateRenderTaskParams
+    flags:
+      background: {to: $.background, implies: {}}
+`, `implies must set at least one body value`},
+		{`
+version: 1
+operations:
+  CreateUpload:
+    flags:
+      name: {to: $.name, implies: {$.other: 1}}
+`, `implies is only supported on x-speakeasy-cli-commands commands`},
+	} {
+		requireDecodeError(t, tc.manifest, tc.want)
+	}
+}

@@ -359,3 +359,45 @@ func exactJSONEqual(a, b any) bool {
 		return reflect.DeepEqual(a, b)
 	}
 }
+
+type ImpliedBody struct {
+	Key    string
+	Values string
+}
+
+// ApplyImpliedBody fills each rule's values into the request body when the
+// body sets the rule's key to true. Keys the request already carries win.
+func ApplyImpliedBody(cmd *cobra.Command, bodyFlag string, rules []ImpliedBody) error {
+	if !FlagChanged(cmd, bodyFlag) || len(rules) == 0 {
+		return nil
+	}
+	raw, _ := GetStringFlag(cmd, bodyFlag)
+	var body map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &body); err != nil || body == nil {
+		return nil
+	}
+	changed := false
+	for _, rule := range rules {
+		if !bytes.Equal(bytes.TrimSpace(body[rule.Key]), []byte("true")) {
+			continue
+		}
+		var values map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(rule.Values), &values); err != nil {
+			return err
+		}
+		for key, value := range values {
+			if _, set := body[key]; !set {
+				body[key] = value
+				changed = true
+			}
+		}
+	}
+	if !changed {
+		return nil
+	}
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	return cmd.Flags().Set(bodyFlag, string(encoded))
+}

@@ -98,6 +98,7 @@ interface IntentCmdCtx {
   ArgsHelp: string; // "Arguments:" section lines for the help page
   Flags: IntentBodyEntry[];
   PromptFlags: IntentBodyEntry[]; // required declared flags a preset does not cover (interactive prompting)
+  Implied: { Key: string; Values: string }[]; // flagutil.ImpliedBody rules from flag implies:
   PresetJSON: string; // JSON object merged into the body before user inputs
   // Partial-body preset merge (flagutil.PresetMerge): how the pinned request
   // variant is told apart from its union siblings, so a caller-supplied
@@ -277,6 +278,21 @@ function intentFallbackFlag(entry: IntentBodyEntry): string {
     return `--${entry.Name} 1`;
   }
   return `--${entry.Name} ${intentExamplePlaceholder(entry.Name || "value")}`;
+}
+
+function intentImpliedRules(flags: any[]): { Key: string; Values: string }[] {
+  const rules: { Key: string; Values: string }[] = [];
+  for (const f of flags) {
+    const implies: any[] = f.Implies || [];
+    const key = intentPointerKey(f.Bind?.Pointer || "");
+    if (!implies.length || !key) continue;
+    const values: Record<string, any> = {};
+    for (const implied of implies) {
+      values[intentPointerKey(implied.Bind?.Pointer || "")] = implied.Value;
+    }
+    rules.push({ Key: key, Values: JSON.stringify(values) });
+  }
+  return rules;
 }
 
 // Single-segment RFC 6901 pointer → top-level body key. Args, presets and
@@ -1289,6 +1305,7 @@ function collectIntentManifest(): IntentManifestCtx {
         .join("\n"),
       Flags: flags,
       PromptFlags: flags.filter((f) => f.Required && !f.PresetCovered),
+      Implied: intentImpliedRules(cmd.Flags || []),
       PresetJSON: presetJSON,
       CommandDisplay: path.join(" "),
       VariantLabel: (route?.RequestVariant || "").replace(

@@ -487,6 +487,9 @@ func (d *cliManifestDecoder) linkSingleRouteCommand(cmd *CLICommand) error {
 		if err := d.linkInput(key, &cmd.Flags[i], variant, presetPointers, presetValues, false); err != nil {
 			return err
 		}
+		if err := d.linkImplies(key, &cmd.Flags[i], []*cliResolvedSchema{variant}); err != nil {
+			return err
+		}
 	}
 
 	d.checkSatisfiability(key, cmd, variant, presetPointers)
@@ -689,6 +692,15 @@ func (d *cliManifestDecoder) linkDispatchCommand(cmd *CLICommand) error {
 	}
 	for i := range cmd.Flags {
 		if err := d.linkDispatchInput(key, &cmd.Flags[i], links, false); err != nil {
+			return err
+		}
+		var variants []*cliResolvedSchema
+		for _, link := range links {
+			if cliContains(cmd.Flags[i].RouteIDs, link.route.ID) {
+				variants = append(variants, link.variant)
+			}
+		}
+		if err := d.linkImplies(key, &cmd.Flags[i], variants); err != nil {
 			return err
 		}
 	}
@@ -3948,6 +3960,40 @@ func cliSortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// linkImplies checks a flag's implied values against every request variant
+// that declares the flag. Each implied property must exist on all of them and
+// normalize to the same value, because one runtime rule serves every route.
+func (d *cliManifestDecoder) linkImplies(cmdKey string, input *CLICommandInput, variants []*cliResolvedSchema) error {
+	if len(input.Implies) == 0 {
+		return nil
+	}
+	if input.Type != "bool" {
+		return fmt.Errorf("command %q flag %q: implies requires a bool flag, but the flag is %s", cmdKey, input.Name, input.Type)
+	}
+	for i := range input.Implies {
+		pointer := input.Implies[i].Bind.Pointer
+		name := cliPointerPropertyName(pointer)
+		var normalized any
+		for j, variant := range variants {
+			if _, declared := variant.properties[name]; !declared {
+				return fmt.Errorf("command %q flag %q: implied property %s is not declared by %s", cmdKey, input.Name, pointer, cliSchemaLabel(variant))
+			}
+			candidate := input.Implies[i]
+			if err := d.linkPreset(cmdKey, &candidate, variant); err != nil {
+				return fmt.Errorf("flag %q implies: %w", input.Name, err)
+			}
+			if j > 0 && !cliValuesEqual(normalized, candidate.Value) {
+				return fmt.Errorf("command %q flag %q: implied value for %s normalizes differently across request variants", cmdKey, input.Name, pointer)
+			}
+			normalized = candidate.Value
+		}
+		if len(variants) > 0 {
+			input.Implies[i].Value = normalized
+		}
+	}
+	return nil
 }
 
 func (d *cliManifestDecoder) linkPreset(cmdKey string, preset *CLICommandPreset, variant *cliResolvedSchema) error {

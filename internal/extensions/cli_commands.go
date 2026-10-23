@@ -58,6 +58,9 @@ type CLICommandInput struct {
 	// SuggestionsDeclared records that Enum came from the manifest, so help
 	// shows the whole authored list instead of the capped schema sample.
 	SuggestionsDeclared bool `json:"suggestionsDeclared,omitempty" yaml:"suggestionsDeclared,omitempty"`
+	// Implies lists root-level body values filled when the request body sets
+	// this bool flag's key to true and does not set the implied key itself.
+	Implies []CLICommandPreset `json:"implies,omitempty" yaml:"implies,omitempty"`
 	// RouteIDs lists the dispatch routes whose request variant declares this
 	// input's bound property. RequiredRouteIDs is the subset on which the
 	// property remains required after schema defaults and effective presets.
@@ -544,7 +547,7 @@ var cliOperationReservedFlagNames = map[string]string{
 }
 
 var cliInputKeys = []string{
-	"to", "type", "required", "variadic", "shorthand", "summary", "default", "defaultFrom", "suggestions",
+	"to", "type", "required", "variadic", "shorthand", "summary", "default", "defaultFrom", "suggestions", "implies",
 }
 
 var (
@@ -828,6 +831,9 @@ func checkOperationInputs(opID string, flags []CLICommandInput) error {
 	shorthands := map[string]string{}
 	pointers := map[string]string{}
 	for _, flag := range flags {
+		if len(flag.Implies) > 0 {
+			return fmt.Errorf("operation %q flag %q: implies is only supported on x-speakeasy-cli-commands commands", opID, flag.Name)
+		}
 		if flag.Shorthand != "" {
 			if previous, ok := shorthands[flag.Shorthand]; ok {
 				return fmt.Errorf("operation %q: flags %q and %q both use shorthand -%s", opID, previous, flag.Name, flag.Shorthand)
@@ -2095,6 +2101,18 @@ func (d *cliManifestDecoder) decodeInput(cmdKey, name string, node *yaml.Node, i
 			}
 			input.Enum = values
 			input.SuggestionsDeclared = true
+		case "implies":
+			if isArg {
+				return nil, fmt.Errorf("line %d: command %q arg %q: implies is only valid on flags", entry.Value.Line, cmdKey, name)
+			}
+			implies, err := d.decodePresets(fmt.Sprintf("%s flag %s implies", cmdKey, name), entry.Value)
+			if err != nil {
+				return nil, err
+			}
+			if len(implies) == 0 {
+				return nil, fmt.Errorf("line %d: command %q flag %q: implies must set at least one body value", entry.Value.Line, cmdKey, name)
+			}
+			input.Implies = implies
 		case "mode":
 			return nil, fmt.Errorf("line %d: command %q input %q: mode lives inside the to: object and only \"set\" is part of v1 (append/merge are reserved capabilities)", entry.Key.Line, cmdKey, name)
 		default:
@@ -2114,6 +2132,16 @@ func (d *cliManifestDecoder) decodeInput(cmdKey, name string, node *yaml.Node, i
 		return nil, err
 	}
 	input.Bind = bind
+	if len(input.Implies) > 0 {
+		if bind.In != "body" || strings.Count(bind.Pointer, "/") != 1 {
+			return nil, fmt.Errorf("command %q flag %q: implies requires the flag to bind a root-level body property", cmdKey, name)
+		}
+		for _, implied := range input.Implies {
+			if implied.Bind.Pointer == bind.Pointer {
+				return nil, fmt.Errorf("command %q flag %q: implies cannot set the flag's own property %s", cmdKey, name, bind.Pointer)
+			}
+		}
+	}
 	return input, nil
 }
 

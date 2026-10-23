@@ -485,6 +485,15 @@ func runIntent{{$c.FuncName}}Cmd(cmd *cobra.Command, args []string) error {
 	{{- end}}
 	{{- end}}
 	{{- end}}
+	{{- if and $c.BodyFlag $c.Implied}}
+	if err := flagutil.ApplyImpliedBody(cmd, "{{$c.BodyFlag}}", []flagutil.ImpliedBody{
+		{{- range $c.Implied}}
+		{Key: "{{escapeGoString .Key}}", Values: "{{escapeGoString .Values}}"},
+		{{- end}}
+	}); err != nil {
+		return err
+	}
+	{{- end}}
 	{{- if $c.AsyncJSON}}
 	if err := output.ValidateAsyncFlags(cmd); err != nil {
 		return err

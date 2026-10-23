@@ -1,0 +1,10 @@
+id: 1792716144-d8272bd9
+features:
+    - cliCommands
+targets:
+    - cli
+type: feat
+bump: patch
+description: let declarative command flags imply other request body values, such as a background flag that turns streaming off
+author: TristanSpeakEasy
+date: "2026-10-23"
