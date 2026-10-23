@@ -1,0 +1,10 @@
+id: 1792768199-b0e4a14b
+features:
+    - core
+targets:
+    - pythonv2
+type: fix
+bump: patch
+description: serialize unrecognized open enum values without warnings and keep them in optional nullable fields
+author: 2ynn
+date: "2026-10-23"

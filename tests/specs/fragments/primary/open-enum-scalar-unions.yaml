@@ -1,0 +1,43 @@
+openapi: 3.1.0
+security:
+  - apiKeyAuth: []
+  - oauth2: []
+  - clientCredentials: [read, write]
+  - customSchemeAppId: []
+  - basicHttp: []
+  - accessToken: []
+  - {}
+components:
+  schemas:
+    OpenEnumScalarUnions:
+      x-speakeasy-include: true
+      type: object
+      description: >-
+        Properties whose type combines an open enum with a number, a boolean or
+        null. An unrecognized enum value must serialize as its plain string or
+        integer, and a number or boolean must keep its value and JSON type.
+      properties:
+        stringOrNumber:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarString'
+            - type: number
+        stringOrBoolean:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarString'
+            - type: boolean
+        integerOrNumber:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarInteger'
+            - type: number
+        stringOrNull:
+          anyOf:
+            - $ref: '#/components/schemas/OpenEnumScalarString'
+            - type: 'null'
+    OpenEnumScalarString:
+      type: string
+      enum: [known]
+      x-speakeasy-unknown-values: allow
+    OpenEnumScalarInteger:
+      type: integer
+      enum: [1, 2]
+      x-speakeasy-unknown-values: allow

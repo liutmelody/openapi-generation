@@ -1,7 +1,7 @@
 from pydantic import ConfigDict, model_serializer
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic_core import core_schema
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar, Union
+from pydantic_core import PydanticSerializationUnexpectedValue, core_schema
+from typing import TYPE_CHECKING, Any, Literal, Optional, Type, TypeVar, Union
 from typing_extensions import TypeAliasType, TypeAlias
 
 
@@ -35,6 +35,18 @@ else:
     )
 
 
+def _unrecognized_serialization(cls: Type[Union[str, int]]) -> core_schema.PlainSerializerFunctionSerSchema:
+    def serialize(value: Any, info: core_schema.SerializationInfo) -> Any:
+        # Decline other values so union serialization tries the remaining members
+        if not isinstance(value, cls):
+            raise PydanticSerializationUnexpectedValue(f"Expected {cls.__name__}")
+        if not info.mode_is_json():
+            return value
+        return str(value) if isinstance(value, str) else int(value)
+
+    return core_schema.plain_serializer_function_ser_schema(serialize, info_arg=True)
+
+
 class UnrecognizedStr(str):
     @classmethod
     def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
@@ -54,6 +66,7 @@ class UnrecognizedStr(str):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
+            serialization=_unrecognized_serialization(cls),
         )
 
 
@@ -72,4 +85,5 @@ class UnrecognizedInt(int):
                 core_schema.no_info_plain_validator_function(validate_lax)
             ]),
             strict_schema=core_schema.none_schema(),  # Always fails in strict mode
+            serialization=_unrecognized_serialization(cls),
         )
