@@ -45,6 +45,17 @@ def test_exclude_none_keeps_explicit_nulls_on_the_wire():
     assert json.loads(utils.marshal_json(model, shared.FieldNode)) == {"displayName": "child", "nullable": None}
 
 
+def test_excluded_fields_stay_out_of_serialization_methods():
+    model = shared.DefaultsAndConsts(normal_field="x")
+    assert "defaultStrNullable" not in model.to_dict()
+    assert model.to_dict(exclude_unset=False)["defaultStrNullable"] is None
+    assert shared.DefaultsAndConsts(normal_field="x", default_str_nullable=None).to_dict()["defaultStrNullable"] is None
+    assert json.loads(utils.marshal_json(model, shared.DefaultsAndConsts))["defaultStrNullable"] is None
+    node = shared.FieldNode(display_name="child", nullable=None)
+    assert node.model_dump(by_alias=True, exclude={"display_name"}) == {"nullable": None}
+    assert node.model_dump(by_alias=True, exclude_none=True) == {"displayName": "child", "nullable": None}
+
+
 def test_model_serialization_methods_field_names():
     model = shared.FieldEnvelopeInput.model_validate({"label": "root", "child": {"displayName": "child"}, "futureKind": "third", "plainChoice": {"text": "t"}})
     api_names = {"label": "root", "child": {"displayName": "child"}, "futureKind": "third", "plainChoice": {"text": "t"}}

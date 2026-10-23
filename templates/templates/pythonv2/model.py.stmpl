@@ -106,7 +106,7 @@ class {{$className}}(BaseModel):
         {{- if $modelSerializationMethods}}
         {{-   addImport "types.basemodel" "SERIALIZATION_METHODS_DUMP" true}}
         use_field_names = info.by_alias is False
-        exclude_none = info.exclude_none and isinstance(info.context, dict) and SERIALIZATION_METHODS_DUMP in info.context
+        serialization_methods_dump = isinstance(info.context, dict) and SERIALIZATION_METHODS_DUMP in info.context
         {{- end}}
 
         for n, f in type(self).model_fields.items():
@@ -115,7 +115,7 @@ class {{$className}}(BaseModel):
             key = k if info.by_alias else n
             {{- end}}
             {{- if $modelSerializationMethods}}
-            if key not in serialized and (info.exclude_defaults or exclude_none):
+            if key not in serialized and (serialization_methods_dump or not info.exclude_none):
                 continue
             {{- end}}
             {{- if $serializerUsesInfo}}
