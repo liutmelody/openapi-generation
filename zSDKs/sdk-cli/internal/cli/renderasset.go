@@ -91,11 +91,13 @@ func executeRenderAssetCmd(cmd *cobra.Command, args []string, asyncIntent bool) 
 		sdkOpts = append(sdkOpts, operations.WithSkipDeserialization())
 	}
 	if !client.IsDryRun(cmd) && !asyncIntent {
+		stopProgress := func() {}
 		res, err := s.RenderAsset(cmd.Context(), *request, sdkOpts...)
 		if err != nil {
+			stopProgress()
 			return nil, output.Error(cmd, err)
 		}
-		if err := output.StreamResult(cmd, res, "AssetStream"); err != nil {
+		if err := output.StreamResult(cmd, res, "AssetStream", stopProgress); err != nil {
 			return nil, err
 		}
 		return nil, nil

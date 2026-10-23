@@ -1,0 +1,11 @@
+id: 1792716065-457f42af
+features:
+    - core
+    - serverEvents
+targets:
+    - cli
+type: fix
+bump: patch
+description: show the request progress indicator while streaming-capable operations wait for their first response
+author: TristanSpeakEasy
+date: "2026-10-23"

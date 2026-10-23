@@ -124,6 +124,57 @@ func TestRequestProgressContextCancellationClears(t *testing.T) {
 	stop()
 }
 
+type progressTestStream struct {
+	items []string
+	next  int
+	delay time.Duration
+}
+
+func (s *progressTestStream) Next() bool {
+	if s.next == 0 {
+		time.Sleep(s.delay)
+	}
+	if s.next >= len(s.items) {
+		return false
+	}
+	s.next++
+	return true
+}
+
+func (s *progressTestStream) Value() *string { return &s.items[s.next-1] }
+
+func (s *progressTestStream) Close() error { return nil }
+
+func TestRequestProgressStreamClearsBeforeFirstEvent(t *testing.T) {
+	cmd, master, _ := newProgressTestCommand(t, context.Background())
+	stop := output.StartRequestProgress(cmd)
+	stream := &progressTestStream{items: []string{"first-event"}, delay: 300 * time.Millisecond}
+	require.NoError(t, output.StreamResult(cmd, struct{ Stream *progressTestStream }{stream}, "Stream", stop))
+
+	got := readProgressOutput(master, 100*time.Millisecond)
+	require.Contains(t, got, "fixture request")
+	event := strings.Index(got, "first-event")
+	require.GreaterOrEqual(t, event, 0)
+	require.Contains(t, got[:event], "\r\x1b[2K")
+	require.NotContains(t, got[event:], "fixture request")
+}
+
+func TestRequestProgressStreamFallbackClearsBeforeResult(t *testing.T) {
+	cmd, master, _ := newProgressTestCommand(t, context.Background())
+	stop := output.StartRequestProgress(cmd)
+	time.Sleep(300 * time.Millisecond)
+	require.NoError(t, output.StreamResult(cmd, struct {
+		Stream *progressTestStream
+		Value  string
+	}{Value: "single-result"}, "Stream", stop))
+
+	got := readProgressOutput(master, 100*time.Millisecond)
+	require.Contains(t, got, "fixture request")
+	result := strings.Index(got, "single-result")
+	require.GreaterOrEqual(t, result, 0)
+	require.Contains(t, got[:result], "\r\x1b[2K")
+}
+
 func TestRequestProgressSuppressionFlags(t *testing.T) {
 	for name, set := range map[string]func(*cobra.Command) error{
 

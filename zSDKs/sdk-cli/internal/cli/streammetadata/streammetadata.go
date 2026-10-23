@@ -54,11 +54,13 @@ func runStreamMetadataCmd(cmd *cobra.Command, args []string) error {
 	// Streaming response — iterate events and output incrementally.
 	// Skip streaming iteration in dry-run mode (synthetic response has no stream).
 	if !client.IsDryRun(cmd) {
+		stopProgress := func() {}
 		res, err := s.StreamMetadata.StreamMetadata(cmd.Context(), sdkOpts...)
 		if err != nil {
+			stopProgress()
 			return output.Error(cmd, err)
 		}
-		return output.StreamResult(cmd, res, "Object")
+		return output.StreamResult(cmd, res, "Object", stopProgress)
 	}
 	res, err := s.StreamMetadata.StreamMetadata(cmd.Context(), sdkOpts...)
 	if err != nil {

@@ -342,11 +342,17 @@ func {{$runFuncName}}(cmd *cobra.Command, args []string) error {
     // Streaming response — iterate events and output incrementally.
     // Skip streaming iteration in dry-run mode (synthetic response has no stream).
     if !client.IsDryRun(cmd) {
+        {{- if operationHasDeferredBody $op}}
+        stopProgress := func() {}
+        {{- else}}
+        stopProgress := output.StartRequestProgress(cmd)
+        {{- end}}
         res, err := s{{.Local.SubSDKAccessor}}.{{sanitizeMethodName $op}}({{templateSDKCallArgs $op $reqObjName}})
         if err != nil {
+            stopProgress()
             return output.Error(cmd, err)
         }
-        return output.StreamResult(cmd, res, "{{getStreamingFieldName $op}}")
+        return output.StreamResult(cmd, res, "{{getStreamingFieldName $op}}", stopProgress)
     }
     {{- end}}
     {{- if not (operationHasDeferredBody $op)}}
@@ -496,11 +502,17 @@ func {{$executeFuncName}}(cmd *cobra.Command, args []string, asyncIntent bool) (
     {{- end}}
     {{- if hasStreamingResponse $op}}
     if !client.IsDryRun(cmd) && !asyncIntent {
+        {{- if operationHasDeferredBody $op}}
+        stopProgress := func() {}
+        {{- else}}
+        stopProgress := output.StartRequestProgress(cmd)
+        {{- end}}
         res, err := s{{.Local.SubSDKAccessor}}.{{sanitizeMethodName $op}}({{templateSDKCallArgs $op $reqObjName}})
         if err != nil {
+            stopProgress()
             return nil, output.Error(cmd, err)
         }
-        if err := output.StreamResult(cmd, res, "{{getStreamingFieldName $op}}"); err != nil {
+        if err := output.StreamResult(cmd, res, "{{getStreamingFieldName $op}}", stopProgress); err != nil {
             return nil, err
         }
         return nil, nil
