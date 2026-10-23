@@ -8,9 +8,9 @@
 {{- addImport "internal/usage" true -}}
 {{- if isAnyInteractiveEnabled -}}
 {{- addImport "internal/interactive" true -}}
-{{- addImport "internal/output" true -}}
 {{- addImport "strings" -}}
 {{- end -}}
+{{- addImport "internal/output" true -}}
 {{- addImport "fmt" -}}
 {{- addImport "encoding/json" -}}
 {{- if isInteractiveAuthEnabled -}}
@@ -54,6 +54,8 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
     if dryRunLocalNoop(cmd, "configure changes local settings only (no API request); nothing was changed.") {
         return nil
     }
+    defer output.PinOutputFormat(cmd)()
+    machineOutput := output.IsMachineMode(cmd)
     cfg := config.GetConfig()
     if cfg == nil {
         cfg = &config.Config{}
@@ -171,18 +173,18 @@ func runConfigureCmd(cmd *cobra.Command, args []string) error {
         return fmt.Errorf("failed to save configuration: %w", err)
     }
 
-    {{- if isAnyInteractiveEnabled}}
-    if output.IsMachineMode(cmd) {
+    if machineOutput {
         result := map[string]any{"config_file": config.GetConfigPath()}
         {{- if hasSecretCLIFields}}
         result["keychain_stored"] = keychainStored
         {{- end}}
+        {{- if isAnyInteractiveEnabled}}
         if len(cleared) > 0 {
             result["cleared"] = cleared
         }
+        {{- end}}
         return output.LocalResult(cmd, result)
     }
-    {{- end}}
     out{{if isAnyInteractiveEnabled}} :{{end}}= cmd.OutOrStdout()
     {{- if hasSecretCLIFields}}
     if keychainStored {

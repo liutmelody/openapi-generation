@@ -2387,14 +2387,21 @@ function templateAuthLogoutClear(): string {
 
   const acc = securityConfigAccessor();
   const lines: string[] = [];
+  if (fields.some((f) => f.isSecret)) {
+    lines.push(`var keychainErrs []error`);
+  }
 
   for (const field of fields) {
     const fieldName = caser().ToPascal(field.field.Name);
     const cfgField = `${acc}${fieldName}`;
 
     if (field.isSecret) {
-      lines.push(`if config.KeyringAvailable() {`);
-      lines.push(`    _ = config.DeleteKeyringValue("${field.flagName}")`);
+      lines.push(
+        `if err := config.DeleteStoredSecret("${field.flagName}"); err != nil {`,
+      );
+      lines.push(
+        `    keychainErrs = append(keychainErrs, fmt.Errorf("--${field.flagName}: %w", err))`,
+      );
       lines.push(`}`);
     }
     if (field.isArray) {
@@ -2744,7 +2751,8 @@ function configureClearableNames(): string[] {
 }
 
 function genConfigureClear(): string[] {
-  const options = configureClearableNames().join(", ");
+  const clearable = configureClearableNames();
+  const options = clearable.join(", ");
   const lines: string[] = [];
   lines.push(
     `if f := cmd.Flags().Lookup("${CONFIGURE_CLEAR_FLAG}"); f != nil && f.Changed {`,
@@ -2752,19 +2760,34 @@ function genConfigureClear(): string[] {
   lines.push(
     `    names, _ := cmd.Flags().GetStringSlice("${CONFIGURE_CLEAR_FLAG}")`,
   );
+  lines.push(`    keys := make([]string, 0, len(names))`);
   lines.push(`    for _, name := range names {`);
   lines.push(
     `        switch key := strings.TrimPrefix(strings.TrimSpace(name), "--"); key {`,
   );
+  lines.push(`        case ${clearable.map((n) => `"${n}"`).join(", ")}:`);
+  lines.push(`            keys = append(keys, key)`);
+  lines.push(`        default:`);
+  lines.push(
+    `            return flagutil.WithCLIValidation(fmt.Errorf("invalid --${CONFIGURE_CLEAR_FLAG} %q; options: ${escapeGoString(
+      options,
+    )}", name))`,
+  );
+  lines.push(`        }`);
+  lines.push(`    }`);
+  lines.push(`    for _, key := range keys {`);
+  lines.push(`        switch key {`);
 
   const secAcc = securityConfigAccessor();
   for (const field of getCLISecurityFields()) {
     const cfgField = `${secAcc}${caser().ToPascal(field.field.Name)}`;
     lines.push(`        case "${field.flagName}":`);
     if (field.isSecret) {
-      lines.push(`            if config.KeyringAvailable() {`);
       lines.push(
-        `                _ = config.DeleteKeyringValue("${field.flagName}")`,
+        `            if err := config.DeleteStoredSecret("${field.flagName}"); err != nil {`,
+      );
+      lines.push(
+        `                return fmt.Errorf("failed to remove --${field.flagName} from the OS keychain: %w", err)`,
       );
       lines.push(`            }`);
     }
@@ -2779,16 +2802,8 @@ function genConfigureClear(): string[] {
   }
   lines.push(`        case "${DEFAULT_OUTPUT_FORMAT_FLAG}":`);
   lines.push(`            cfg.OutputFormat = ""`);
-  lines.push(`        default:`);
-  lines.push(
-    `            return flagutil.WithCLIValidation(fmt.Errorf("invalid --${CONFIGURE_CLEAR_FLAG} %q; options: ${escapeGoString(
-      options,
-    )}", name))`,
-  );
   lines.push(`        }`);
-  lines.push(
-    `        cleared = append(cleared, strings.TrimPrefix(strings.TrimSpace(name), "--"))`,
-  );
+  lines.push(`        cleared = append(cleared, key)`);
   lines.push(`    }`);
   lines.push(`    changed = true`);
   lines.push(`}`);

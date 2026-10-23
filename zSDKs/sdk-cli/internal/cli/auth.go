@@ -4,6 +4,7 @@ package cli
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
 	"openapi/internal/config"
@@ -456,47 +457,51 @@ func runAuthLogoutCmd(cmd *cobra.Command, args []string) error {
 		cfg = &config.Config{}
 	}
 
+	var keychainErrs []error
 	cfg.Security.Username = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("password")
+	if err := config.DeleteStoredSecret("password"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--password: %w", err))
 	}
 	cfg.Security.Password = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("bearer-auth")
+	if err := config.DeleteStoredSecret("bearer-auth"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--bearer-auth: %w", err))
 	}
 	cfg.Security.BearerAuth = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("my-api-key")
+	if err := config.DeleteStoredSecret("my-api-key"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--my-api-key: %w", err))
 	}
 	cfg.Security.MyApiKey = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("oauth2")
+	if err := config.DeleteStoredSecret("oauth2"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--oauth2: %w", err))
 	}
 	cfg.Security.Oauth2 = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("app-id")
+	if err := config.DeleteStoredSecret("app-id"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--app-id: %w", err))
 	}
 	cfg.Security.AppId = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("secret")
+	if err := config.DeleteStoredSecret("secret"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--secret: %w", err))
 	}
 	cfg.Security.Secret = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("mobile-auth")
+	if err := config.DeleteStoredSecret("mobile-auth"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--mobile-auth: %w", err))
 	}
 	cfg.Security.MobileAuth = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("client-id")
+	if err := config.DeleteStoredSecret("client-id"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--client-id: %w", err))
 	}
 	cfg.Security.ClientID = ""
-	if config.KeyringAvailable() {
-		_ = config.DeleteKeyringValue("client-secret")
+	if err := config.DeleteStoredSecret("client-secret"); err != nil {
+		keychainErrs = append(keychainErrs, fmt.Errorf("--client-secret: %w", err))
 	}
 	cfg.Security.ClientSecret = ""
 	cfg.Security.TokenURL = ""
 
 	if err := config.SaveConfig(cfg); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
+	}
+	if err := errors.Join(keychainErrs...); err != nil {
+		return fmt.Errorf("credentials were cleared from the config file, but removing them from the OS keychain failed: %w", err)
 	}
 
 	if output.IsMachineMode(cmd) {

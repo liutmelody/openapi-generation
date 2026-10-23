@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -306,6 +307,123 @@ func TestConfigureNoInteractiveStoresFlags(t *testing.T) {
 	data, err := os.ReadFile(config.GetConfigPath())
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "username: flag-only-user")
+}
+
+type deleteFailingKeyring struct{ recordingKeyring }
+
+func (k *deleteFailingKeyring) Delete(service, key string) error {
+	k.deletes++
+	return errors.New("delete denied")
+}
+
+func runConfigureClear(t *testing.T, backend config.KeyringBackend, clear string) (string, error) {
+	t.Helper()
+	h, home := setupConfigureTest(t)
+	config.SetKeyringBackend(backend)
+	t.Cleanup(config.ResetKeyring)
+	writeConfigFile(t, home, map[string]interface{}{
+		"security": map[string]interface{}{"api_key_auth": "stored-key"},
+		"globals":  map[string]interface{}{"global_query_param": "stored-query"},
+	})
+	rootCmd, err := cli.NewRootCommand()
+	require.NoError(t, err)
+	rootCmd.SetOut(h.stdout)
+	rootCmd.SetErr(h.stderr)
+	runErr := cli.ExecuteRoot(context.Background(), rootCmd, []string{"configure", "--no-interactive", "--clear", clear})
+	data, err := os.ReadFile(cliConfigPath(home))
+	require.NoError(t, err)
+	return string(data), runErr
+}
+
+func TestConfigureClearRemovesValues(t *testing.T) {
+	recorder := &recordingKeyring{}
+	data, err := runConfigureClear(t, recorder, "api-key-auth,--global-query-param")
+	require.NoError(t, err)
+	assert.NotContains(t, data, "stored-key")
+	assert.NotContains(t, data, "stored-query")
+	assert.Equal(t, 1, recorder.deletes)
+}
+
+func TestConfigureClearValidatesEveryNameFirst(t *testing.T) {
+	recorder := &recordingKeyring{}
+	data, err := runConfigureClear(t, recorder, "api-key-auth,not-a-setting")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `invalid --clear "not-a-setting"`)
+	assert.Contains(t, data, "stored-key")
+	assert.Zero(t, recorder.deletes)
+}
+
+func TestConfigureClearReportsKeychainDeleteFailure(t *testing.T) {
+	backend := &deleteFailingKeyring{}
+	data, err := runConfigureClear(t, backend, "api-key-auth")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove --api-key-auth from the OS keychain")
+	assert.Contains(t, data, "stored-key")
+	assert.Equal(t, 1, backend.deletes)
+}
+
+func TestConfigureClearMachineOutput(t *testing.T) {
+	h, home := setupConfigureTest(t)
+	config.SetKeyringBackend(&recordingKeyring{})
+	t.Cleanup(config.ResetKeyring)
+	writeConfigFile(t, home, map[string]interface{}{
+		"globals":       map[string]interface{}{"global_query_param": "stored-query"},
+		"output_format": "json",
+	})
+	rootCmd, err := cli.NewRootCommand()
+	require.NoError(t, err)
+	rootCmd.SetOut(h.stdout)
+	rootCmd.SetErr(h.stderr)
+	require.NoError(t, cli.ExecuteRoot(context.Background(), rootCmd, []string{
+		"configure", "--no-interactive", "--clear", "global-query-param,default-output-format",
+	}))
+	var result struct {
+		ConfigFile string   `json:"config_file"`
+		Cleared    []string `json:"cleared"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(h.GetStdout()), &result), "stdout: %s", h.GetStdout())
+	assert.Equal(t, cliConfigPath(home), result.ConfigFile)
+	assert.Equal(t, []string{"global-query-param", "default-output-format"}, result.Cleared)
+}
+
+func TestAuthLogoutMachineOutput(t *testing.T) {
+	h, home := setupConfigureTest(t)
+	config.SetKeyringBackend(&recordingKeyring{})
+	t.Cleanup(config.ResetKeyring)
+	writeConfigFile(t, home, map[string]interface{}{
+		"security": map[string]interface{}{"api_key_auth": "stored-key"},
+	})
+	rootCmd, err := cli.NewRootCommand()
+	require.NoError(t, err)
+	rootCmd.SetOut(h.stdout)
+	rootCmd.SetErr(h.stderr)
+	require.NoError(t, cli.ExecuteRoot(context.Background(), rootCmd, []string{"auth", "logout", "--output-format", "json"}))
+	var result struct {
+		Cleared         bool `json:"cleared"`
+		KeychainCleared bool `json:"keychain_cleared"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(h.GetStdout()), &result), "stdout: %s", h.GetStdout())
+	assert.True(t, result.Cleared)
+	assert.True(t, result.KeychainCleared)
+}
+
+func TestAuthLogoutReportsKeychainDeleteFailure(t *testing.T) {
+	h, home := setupConfigureTest(t)
+	config.SetKeyringBackend(&deleteFailingKeyring{})
+	t.Cleanup(config.ResetKeyring)
+	writeConfigFile(t, home, map[string]interface{}{
+		"security": map[string]interface{}{"api_key_auth": "stored-key"},
+	})
+	rootCmd, err := cli.NewRootCommand()
+	require.NoError(t, err)
+	rootCmd.SetOut(h.stdout)
+	rootCmd.SetErr(h.stderr)
+	err = cli.ExecuteRoot(context.Background(), rootCmd, []string{"auth", "logout"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "removing them from the OS keychain failed")
+	data, readErr := os.ReadFile(cliConfigPath(home))
+	require.NoError(t, readErr)
+	assert.NotContains(t, string(data), "stored-key")
 }
 
 func TestLocalMutationCommandsDryRunAreNoOps(t *testing.T) {

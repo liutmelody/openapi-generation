@@ -4,6 +4,7 @@
 {{- addImport "internal/flagutil" true -}}
 {{- if templateHasSecuritySchemeGroups}}{{- addImport "internal/interactive" true -}}{{- addImport "internal/forms" true -}}{{- end}}
 {{- addImport "fmt" -}}
+{{- if hasSecretCLIFields}}{{- addImport "errors" -}}{{- end}}
 {{- addImport "internal/output" true -}}
 package cli
 
@@ -157,6 +158,11 @@ func runAuthLogoutCmd(cmd *cobra.Command, args []string) error {
     if err := config.SaveConfig(cfg); err != nil {
         return fmt.Errorf("failed to save configuration: %w", err)
     }
+    {{- if hasSecretCLIFields}}
+    if err := errors.Join(keychainErrs...); err != nil {
+        return fmt.Errorf("credentials were cleared from the config file, but removing them from the OS keychain failed: %w", err)
+    }
+    {{- end}}
 
     if output.IsMachineMode(cmd) {
         return output.LocalResult(cmd, map[string]any{
