@@ -151,22 +151,29 @@ function templateAssertion(
     operator = "is";
   }
 
-  lines.push(
-    `assert ${assertionValue} ${operator} ${templateValue(
-      field,
-      example,
-      false,
-      {
-        usageContext: usageContext,
-        operation: usageContext?.Operation,
-        test: usageContext.Test,
-        isTest: true,
-        typedDictDisabled: true,
-        isResponse: true,
-        targetingMockServer: usageContext.UsingMockServer,
-      },
-    )}`,
-  );
+  const expected = templateValue(field, example, false, {
+    usageContext: usageContext,
+    operation: usageContext?.Operation,
+    test: usageContext.Test,
+    isTest: true,
+    typedDictDisabled: true,
+    isResponse: true,
+    targetingMockServer: usageContext.UsingMockServer,
+  });
+
+  if (
+    context.Global.Config.PreserveUnknownFields &&
+    ["class", "array", "map", "union"].includes(field.Type.Type.toString())
+  ) {
+    addImport(".unknown_fields", "drop_unexpected_fields");
+    lines.push(`expected = ${expected}`);
+    lines.push(
+      `assert drop_unexpected_fields(${assertionValue}, expected) == expected`,
+    );
+    return lines;
+  }
+
+  lines.push(`assert ${assertionValue} ${operator} ${expected}`);
   return lines;
 }
 

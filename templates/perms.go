@@ -1543,6 +1543,7 @@ var fileMode = map[string]fs.FileMode{
 	"templates/pythonv2/auxiliary/tests/conftest.py.stmpl":                                                         0o644,
 	"templates/pythonv2/auxiliary/tests/helpers.py.stmpl":                                                          0o644,
 	"templates/pythonv2/auxiliary/tests/test_client.py.stmpl":                                                      0o644,
+	"templates/pythonv2/auxiliary/tests/unknown_fields.py.stmpl":                                                   0o644,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}":                                                               0o20000000755,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/__init__.py.stmpl":                                             0o644,
 	"templates/pythonv2/auxiliary/{{getSourcePath}}/_version.py.stmpl":                                             0o644,
