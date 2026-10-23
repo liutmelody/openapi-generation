@@ -32,6 +32,8 @@ paths:
                     type: string
                   nickname:
                     type: string
+                  label:
+                    type: string
 ```
 
 ## New Spec:
@@ -66,18 +68,24 @@ paths:
                   nickname:
                     type: string
                     deprecated: true
+                  label:
+                    type: string
+                    nullable: true
+                    deprecated: true
 ```
 
 ## Compact Mode:
 ## Typescript SDK Changes:
 * `sdk.updateWidget()`: 
   *  `request.color` **Deprecated**
-  *  `response.nickname` **Deprecated**
+  *  `response` **Changed** (Breaking ⚠️)
 
 ## Full Mode:
 ## Typescript SDK Changes:
 * `sdk.updateWidget()`: 
   *  `request.color` **Deprecated**
-  *  `response.nickname` **Deprecated**
+  * `response` **Changed** (Breaking ⚠️)
+    - `label` **Changed** (Breaking ⚠️)
+    - `nickname` **Deprecated**
 
 ---

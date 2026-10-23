@@ -34,6 +34,8 @@ paths:
                   id:
                     type: string
                   nickname:
+                    type: string
+                  label:
                     type: string`
 
 	newSpec := `openapi: 3.0.0
@@ -65,6 +67,10 @@ paths:
                     type: string
                   nickname:
                     type: string
+                    deprecated: true
+                  label:
+                    type: string
+                    nullable: true
                     deprecated: true`
 
 	lang := "typescript"
